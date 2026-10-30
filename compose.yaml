@@ -1,0 +1,9 @@
+services:
+  okr:
+    build: .
+    ports:
+      - "127.0.0.1:8888:8888"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data
+    restart: unless-stopped

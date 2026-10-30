@@ -1,0 +1,23 @@
+{
+  "jwt_secret": "",
+  "jwt_expire_hours": 72,
+  "okr": {
+    "wecom": {
+      "enabled": false,
+      "corp_id": "",
+      "agent_id": "",
+      "app_secret": "",
+      "callback_url": "",
+      "corp_name": "示例企业",
+      "leader_role": "superAdmin"
+    },
+    "sms": {
+      "secret_id": "",
+      "secret_key": "",
+      "sdk_app_id": "",
+      "sign_name": "",
+      "template_id": "",
+      "region": "ap-guangzhou"
+    }
+  }
+}
