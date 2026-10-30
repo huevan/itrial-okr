@@ -1,0 +1,3493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKR 管理平台</title>
+<link rel="icon" type="image/svg+xml" href="/static/okr/logo.svg">
+<link rel="apple-touch-icon" href="/static/okr/logo.svg">
+<link rel="stylesheet" href="/static/okr/okr-common.css?v=20260816-confirm-dialog">
+<link rel="stylesheet" href="/static/okr/okr-evaluation.css?v=20261015-pdf1">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+.main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+.board-area { min-height: 400px; }
+
+.personal-view-heading { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.personal-view-switcher { display:none; align-items:center; gap:7px; color:var(--text-secondary); font-size:13px; }
+.personal-view-switcher .form-input { width:190px; padding-top:7px; padding-bottom:7px; }
+.personal-view-actions { display:flex; align-items:center; gap:10px; }
+.okr-guide-link {
+  appearance:none; padding:6px 2px; border:0; border-bottom:1px dashed #8b5cf6;
+  background:transparent; color:#6d28d9; font-size:13px; line-height:1.4; cursor:pointer;
+}
+.okr-guide-link:hover { color:#7c3aed; border-bottom-style:solid; }
+.okr-guide-link:focus-visible { outline:2px solid #a78bfa; outline-offset:3px; border-radius:3px; }
+.personal-manage-hint {
+  display:none; margin:-8px 0 16px; padding:10px 12px; border:1px solid #ddd6fe;
+  border-radius:10px; background:#f5f3ff; color:#6d28d9; font-size:13px;
+}
+.okr-delegation-hint {
+  display:none; margin-bottom:14px; padding:9px 12px; border-radius:9px;
+  background:#f5f3ff; color:#6d28d9; font-size:12px; line-height:1.6;
+}
+
+/* 创建 OKR 帮助 */
+.okr-guide-modal { width:780px; }
+.okr-guide-lead {
+  margin:-8px 0 16px; padding:12px 14px; border:1px solid #ddd6fe; border-radius:10px;
+  background:#f5f3ff; color:#5b21b6; font-size:13px; line-height:1.65;
+}
+.okr-guide-formula { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+.okr-guide-formula span {
+  flex:1 1 250px; padding:9px 12px; border-radius:9px; background:#f8fafc;
+  color:#475569; font-size:13px; font-weight:600; text-align:center;
+}
+.okr-guide-section-title { margin:18px 0 10px; color:var(--text); font-size:14px; font-weight:700; }
+.okr-guide-steps { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }
+.okr-guide-step { padding:12px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+.okr-guide-step-head { display:flex; align-items:center; gap:7px; margin-bottom:6px; color:#6d28d9; font-size:13px; font-weight:700; }
+.okr-guide-step-no {
+  display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+  border-radius:50%; background:#ede9fe; color:#7c3aed; font-size:12px;
+}
+.okr-guide-step p { margin:0; color:#64748b; font-size:12px; line-height:1.65; }
+.okr-guide-example-grid { display:grid; grid-template-columns:1fr 1.25fr; gap:10px; }
+.okr-guide-example { padding:13px 14px; border-radius:10px; font-size:12px; line-height:1.65; }
+.okr-guide-example.bad { border:1px solid #fecaca; background:#fff7f7; color:#991b1b; }
+.okr-guide-example.good { border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; }
+.okr-guide-example-title { margin-bottom:7px; font-size:13px; font-weight:700; }
+.okr-guide-example p { margin:4px 0; }
+.okr-guide-template { padding:12px 14px; border-radius:10px; background:#f8fafc; color:#475569; font-size:12px; line-height:1.8; }
+.okr-guide-template code { color:#6d28d9; font-family:inherit; font-weight:600; }
+.okr-guide-checklist { display:flex; flex-wrap:wrap; gap:7px 14px; margin-top:10px; color:#64748b; font-size:12px; }
+.okr-guide-checklist span::before { content:'\2713'; margin-right:5px; color:#10b981; font-weight:700; }
+
+/* 个人 OKR 卡片 */
+.okr-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--primary);
+  transition: .2s;
+}
+.okr-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+.okr-card.draft { border-left-color: #94a3b8; }
+.okr-card.pending { border-left-color: var(--warning); }
+.okr-card.approved, .okr-card.active { border-left-color: var(--info); }
+.okr-card.completed { border-left-color: var(--success); }
+.okr-card.rejected { border-left-color: var(--danger); }
+
+.okr-rejection-notice {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #7f1d1d;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.okr-rejection-notice-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: #dc2626;
+  font-weight: 700;
+}
+.okr-rejection-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
+.okr-rejection-guide { margin-top: 5px; color: #991b1b; font-size: 12px; }
+
+.okr-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.okr-card-title { font-size: 16px; font-weight: 700; color: var(--text); flex: 1; }
+.okr-card-meta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+.aligned-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ede9fe;
+  color: var(--primary);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.kr-list { margin-top: 12px; }
+.kr-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+.kr-item:last-child { border-bottom: none; }
+.kr-item .kr-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: #8b5cf6;
+}
+.kr-item .kr-title { flex: 1; }
+.kr-item .kr-progress { width: 120px; }
+.kr-item .kr-value { font-size: 12px; color: var(--text-secondary); min-width: 80px; text-align: right; }
+.kr-item .kr-wpct-tag {
+  font-size: 11px; color: #15803d; background: #f0fdf4;
+  padding: 1px 6px; border-radius: 6px; font-weight: 600;
+  flex-shrink: 0; white-space: nowrap;
+}
+.okr-weight-tag {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  color: #6d28d9; background: #f5f3ff; padding: 1px 8px;
+  border-radius: 6px; margin-left: 8px; vertical-align: middle;
+}
+
+.okr-card-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* 脑图容器 */
+.mindmap-container { width: 100%; overflow: auto; min-height: 400px; }
+.mindmap-container svg { display: block; min-width: 100%; }
+.dept-board-heading { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.dept-person-filter {
+  display:flex; align-items:center; gap:8px; padding:5px 8px 5px 10px;
+  border:1px solid #e2e8f0; border-radius:9px; background:#f8fafc;
+}
+.dept-person-filter label { color:#64748b; font-size:12px; font-weight:600; white-space:nowrap; }
+.dept-person-filter .form-input {
+  width:190px; min-height:32px; padding:5px 30px 5px 9px; border-color:#e2e8f0;
+  background-color:#fff; font-size:12px;
+}
+.dept-person-filter-status { color:#94a3b8; font-size:11px; white-space:nowrap; }
+.encouragement-ticker[hidden] { display: none; }
+.encouragement-ticker {
+  position: fixed; right: 28px; bottom: 24px; z-index: 45;
+  width: min(300px, calc(100vw - 32px)); padding: 10px 12px;
+  border: 1px solid rgba(244, 114, 182, .3); border-radius: 14px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 12px 30px rgba(76, 29, 149, .14);
+  backdrop-filter: blur(8px); pointer-events: none;
+}
+.encouragement-ticker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; color: #be185d; font-size: 11px; font-weight: 700;
+}
+.encouragement-ticker-header span:last-child { color: #94a3b8; font-weight: 500; }
+.encouragement-ticker-viewport { position: relative; height: 48px; overflow: hidden; }
+.encouragement-ticker-item {
+  position: absolute; inset: 0; display: flex; align-items: center; gap: 9px;
+  opacity: 0; transform: translateY(22px);
+  transition: opacity .28s ease, transform .28s ease;
+}
+.encouragement-ticker-item.is-visible { opacity: 1; transform: translateY(0); }
+.encouragement-ticker-item.is-leaving { opacity: 0; transform: translateY(-22px); }
+.encouragement-ticker-heart {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%;
+  color: #db2777; background: #fce7f3; font-size: 15px;
+}
+.encouragement-ticker-copy { min-width: 0; }
+.encouragement-ticker-message { color: #334155; font-size: 13px; line-height: 1.35; }
+.encouragement-ticker-message strong { color: #9d174d; }
+.encouragement-ticker-objective {
+  margin-top: 3px; overflow: hidden; color: #94a3b8; font-size: 11px;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .encouragement-ticker { right: 12px; bottom: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .encouragement-ticker-item { transition: none; }
+}
+
+/* 统计图表 */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.chart-box {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 16px;
+  height: 380px;
+}
+.dept-tab-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: .2s;
+  white-space: nowrap;
+}
+.dept-tab-btn:hover { background: #f1f5f9; color: #334155; }
+.dept-tab-btn.active { background: #6d28d9; color: #fff; border-color: #6d28d9; }
+
+.kr-help-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #f59e0b; color: #fff; font-size: 12px; font-weight: 800;
+  cursor: pointer; user-select: none; transition: .2s;
+  box-shadow: 0 1px 4px rgba(245,158,11,0.4);
+}
+.kr-help-icon:hover { background: #d97706; transform: scale(1.15); }
+.kr-help-tip {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 10px; font-size: 12px;
+  line-height: 1.7; color: #475569;
+}
+.kr-edit-row {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.kr-edit-row:hover { border-color: #cbd5e1; }
+.kr-meta {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; font-size: 13px; color: #64748b; flex-wrap: wrap;
+}
+.kr-meta input.form-input { width: 72px; }
+.kr-meta .kr-unit.form-input { width: 58px; }
+.kr-meta .kr-sep { color: #cbd5e1; font-weight: 700; font-size: 16px; line-height: 1; }
+.kr-meta .kr-weight.form-input { width: 72px; }
+.kr-meta .kr-weight-pct {
+  display: inline-block; min-width: 42px; padding: 2px 6px;
+  background: #f0fdf4; color: #15803d; border-radius: 6px;
+  font-size: 11px; font-weight: 600; text-align: center; white-space: nowrap;
+}
+.kr-meta .kr-hint { color: #94a3b8; font-size: 12px; margin-left: 4px; }
+
+.okr-period-weight-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.okr-period-weight-row .form-group { margin-bottom: 0; min-width: 0; }
+.okr-period-weight-row #okrWeight { width: 100% !important; }
+
+/* 目标评估：部门人员树 + 人员 O/KR 详情 */
+.review-workspace {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.review-person-tree {
+  padding: 14px 10px;
+  border-right: 1px solid var(--border);
+  background: #faf9fe;
+  overflow-y: auto;
+  max-height: 680px;
+}
+.review-tree-title { padding: 0 8px 10px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.review-tree-department + .review-tree-department { margin-top: 7px; }
+.review-tree-department-toggle {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--text);
+  font-size: 13px; font-weight: 700; text-align: left; cursor: pointer;
+}
+.review-tree-department-toggle:hover { background: #ede9fe; color: #6d28d9; }
+.review-tree-arrow { width: 14px; color: #8b5cf6; transition: transform .15s ease; }
+.review-tree-department.is-collapsed .review-tree-arrow { transform: rotate(-90deg); }
+.review-tree-department.is-collapsed .review-tree-people { display: none; }
+.review-tree-dept-count { margin-left: auto; color: #94a3b8; font-size: 11px; font-weight: 500; }
+.review-tree-person {
+  display: flex; align-items: center; gap: 8px; width: calc(100% - 12px);
+  margin: 2px 0 2px 12px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: #475569; font-size: 13px; text-align: left; cursor: pointer;
+}
+.review-tree-person:hover { background: #f1f5f9; }
+.review-tree-person.is-active { background: #ede9fe; color: #6d28d9; font-weight: 700; }
+.review-tree-person-avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 26px;
+  width: 26px; height: 26px; border-radius: 50%; background: #e2e8f0; color: #64748b;
+  font-size: 12px; font-weight: 700;
+}
+.review-tree-person.is-active .review-tree-person-avatar { background: #8b5cf6; color: #fff; }
+.review-tree-person-meta { min-width: 0; flex: 1; }
+.review-tree-person-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-tree-person-count { margin-top: 2px; color: #94a3b8; font-size: 11px; font-weight: 400; }
+.review-tree-pending-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
+.review-person-detail { min-width: 0; padding: 18px 20px; background: #fff; overflow: hidden; }
+.review-person-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+.review-person-name { color: var(--text); font-size: 18px; font-weight: 700; }
+.review-person-department { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
+.review-person-summary { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.review-summary-pill { padding: 4px 9px; border-radius: 12px; background: #f1f5f9; color: #64748b; font-size: 11px; white-space: nowrap; }
+.review-summary-pill.is-pending { background: #fef3c7; color: #b45309; }
+.review-summary-pill.is-complete { background: #dcfce7; color: #15803d; }
+.review-objective-card { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.review-objective-card + .review-objective-card { margin-top: 12px; }
+.review-objective-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.review-objective-status { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; }
+.review-objective-title { color: var(--text); font-size: 15px; font-weight: 700; line-height: 1.5; }
+.review-objective-description { margin-top: 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.65; }
+.review-objective-meta { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+.review-objective-meta span { padding: 3px 8px; border-radius: 10px; background: #f8fafc; color: #64748b; font-size: 11px; }
+.review-progress-compact {
+  display: inline-grid; grid-template-columns: 72px 36px; align-items: center; gap: 8px;
+  min-height: 28px; padding: 4px 8px; border-radius: 10px; background: #f8fafc;
+  color: #64748b; font-size: 11px; white-space: nowrap;
+}
+.review-progress-compact.has-label { grid-template-columns: auto 72px 36px; }
+.review-progress-label { color: #64748b; }
+.review-progress-track { width: 72px; height: 6px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.review-progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary-light), var(--primary)); }
+.review-progress-compact strong { color: #334155; font-size: 12px; text-align: right; }
+.review-objective-scores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.review-score-cell { padding: 9px 10px; border-radius: 8px; background: #f8fafc; text-align: center; }
+.review-score-label { color: #94a3b8; font-size: 10px; }
+.review-score-value { margin-top: 3px; color: #334155; font-size: 14px; font-weight: 700; }
+.review-detail-kr-list { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
+.review-detail-kr-heading { margin-bottom: 7px; color: #64748b; font-size: 12px; font-weight: 700; }
+.review-detail-kr { padding: 9px 0; }
+.review-detail-kr + .review-detail-kr { border-top: 1px solid #f1f5f9; }
+.review-detail-kr-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #475569; font-size: 12px; line-height: 1.5; }
+.review-detail-kr-title { min-width: 0; flex: 1; }
+.review-detail-kr-metrics { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex: 0 0 auto; }
+.review-detail-kr-value { flex: 0 0 auto; color: #64748b; white-space: nowrap; }
+.review-detail-kr-metrics .review-progress-compact { padding: 0; background: transparent; }
+.review-objective-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 13px; }
+.review-self-comment { min-width: 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 820px) {
+  .review-workspace { grid-template-columns: 1fr; }
+  .review-person-tree { max-height: 260px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .review-objective-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .personal-view-actions { align-items:flex-end; flex-direction:column-reverse; gap:6px; }
+  .okr-guide-modal { width:100%; }
+  .okr-guide-steps, .okr-guide-example-grid { grid-template-columns:1fr; }
+  .dept-board-heading, .dept-person-filter { align-items:stretch; width:100%; }
+  .dept-person-filter { flex-wrap:wrap; }
+  .dept-person-filter .form-input { flex:1 1 180px; width:auto; }
+  .okr-period-weight-row { grid-template-columns: 1fr; gap: 12px; }
+  .review-person-detail { padding: 14px; }
+  .review-person-header, .review-objective-head, .review-objective-footer { flex-direction: column; }
+  .review-objective-status { width: 100%; justify-content: flex-start; }
+  .review-person-summary { justify-content: flex-start; }
+  .review-detail-kr-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .review-detail-kr-metrics { justify-content: space-between; }
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: #94a3b8;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state p { font-size: 15px; }
+
+/* 周期选择器 */
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.period-selector label { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+.period-selector select { width: 140px; }
+.period-selector .btn { height: 40px; }
+.history-period-hint { margin-top: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.history-period-error { display: none; margin-top: 10px; color: var(--danger); font-size: 12px; }
+
+/* OKR 审核中心 */
+.audit-tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px; margin-left: 5px;
+  border-radius: 10px; background: #ef4444; color: #fff;
+  font-size: 11px; font-weight: 700;
+}
+.audit-tab-count.is-empty { background: #cbd5e1; }
+.audit-summary-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; margin: 18px 0;
+}
+.audit-summary-item {
+  padding: 15px 18px; border: 1px solid var(--border);
+  border-radius: 10px; background: #faf9fe;
+}
+.audit-summary-label { color: var(--text-secondary); font-size: 12px; }
+.audit-summary-value { margin-top: 4px; color: var(--text); font-size: 24px; font-weight: 700; }
+.audit-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px; margin-bottom: 14px; border-radius: 10px; background: #f8fafc;
+}
+.audit-toolbar .form-input { width: 170px; background: #fff; }
+.audit-toolbar .audit-search { width: min(280px, 100%); }
+.audit-result-count { margin-left: auto; color: var(--text-secondary); font-size: 12px; }
+.audit-table th { white-space: nowrap; }
+.audit-table td { vertical-align: middle; }
+.audit-person-name { font-weight: 600; color: var(--text); }
+.audit-dept-tag {
+  display: inline-block; margin-top: 4px; padding: 2px 7px;
+  border-radius: 10px; background: #ede9fe; color: #6d28d9; font-size: 11px;
+}
+.audit-objective-title { max-width: 320px; color: var(--text); font-weight: 500; }
+.audit-detail-meta {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px; margin-bottom: 16px;
+}
+.audit-detail-meta > div { padding: 10px 12px; border-radius: 8px; background: #f8fafc; }
+.audit-detail-meta span { display: block; margin-bottom: 3px; color: var(--text-secondary); font-size: 11px; }
+.audit-detail-section { margin-top: 16px; }
+.audit-detail-section h4 { margin-bottom: 8px; color: var(--text); font-size: 13px; }
+.audit-kr-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.audit-kr-title { margin-bottom: 6px; color: var(--text); font-size: 13px; }
+.audit-form-error { display: none; margin-top: 6px; color: var(--danger); font-size: 12px; }
+@media (max-width: 760px) {
+  .audit-summary-grid, .audit-detail-meta { grid-template-columns: 1fr; }
+  .audit-toolbar .form-input, .audit-toolbar .audit-search { width: 100%; }
+  .audit-result-count { width: 100%; margin-left: 0; }
+}
+
+/* 用户下拉菜单 */
+.user-dropdown { position: relative; display: inline-block; }
+.user-dropdown .user-info { padding: 6px 12px; border-radius: 6px; transition: .2s; }
+.user-dropdown .user-info:hover { background: rgba(255,255,255,0.15); }
+.dropdown-menu {
+  display: none; position: absolute; right: 0; top: 100%; margin-top: 6px;
+  background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  min-width: 150px; z-index: 1000; overflow: hidden;
+}
+.dropdown-menu a {
+  display: block; padding: 10px 16px; color: #334155; text-decoration: none;
+  font-size: 14px; transition: .15s;
+}
+.dropdown-menu a:hover { background: #f1f5f9; color: #6d28d9; }
+.user-dropdown:hover .dropdown-menu { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>OKR 管理平台 <span id="headerCompany" style="font-size:14px;font-weight:400;opacity:0.75;margin-left:8px"></span></h1>
+  <div class="nav-right">
+    <a href="/" class="btn-logout" style="text-decoration:none">平台首页</a>
+    <div class="user-dropdown">
+      <span class="user-info" id="headerUser" style="cursor:pointer"></span>
+      <div class="dropdown-menu" id="userDropdown">
+        <a href="/okr/admin" id="adminLink" style="display:none">后台管理</a>
+        <a href="javascript:void(0)" id="roleSwitchLink" style="display:none">&#20999;&#25442;&#35282;&#33394;</a>
+        <a href="javascript:void(0)" onclick="showModal('profileModal')">个人信息</a>
+        <a href="javascript:void(0)" id="pwdMenuLink" onclick="showModal('pwdModal')">修改密码</a>
+        <a href="javascript:void(0)" onclick="logout()">退出登录</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 看板 Tab -->
+  <div class="tabs" id="boardTabs">
+    <button class="tab-btn active" data-tab="tab-company">公司年度 OKR</button>
+    <button class="tab-btn" data-tab="tab-dept">公司月度 OKR</button>
+    <button class="tab-btn" data-tab="tab-personal">个人 OKR</button>
+    <button class="tab-btn" data-tab="tab-audit" id="auditTabBtn" style="display:none">OKR审核<span class="audit-tab-count is-empty" id="auditTabCount">0</span></button>
+    <button class="tab-btn" data-tab="tab-stats">统计报表</button>
+    <button class="tab-btn" data-tab="tab-review">目标评估</button>
+  </div>
+
+  <!-- 周期选择 -->
+  <div class="period-selector" id="mainPeriodSelector">
+    <label>周期:</label>
+    <select class="form-input" id="periodSelect" onchange="onPeriodChange()">
+    </select>
+    <button type="button" class="btn btn-ghost btn-sm" id="historyPeriodBtn"
+      onclick="openHistoryPeriodModal()" aria-haspopup="dialog">历史记录</button>
+  </div>
+
+  <!-- ── 公司 OKR 看板 ─────────────────────────────────────────────── -->
+  <div class="tab-panel active" id="tab-company">
+    <div class="card">
+      <div class="flex-between mb-10">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-weight:600;font-size:16px">公司年度 OKR</span>
+          <select class="form-input" id="companyBoardFilter" style="display:none;width:160px" onchange="loadCompanyBoard()">
+            <option value="">请选择公司</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="btnCopyCompanyOkr" style="display:none" onclick="showCopyFromPeriod('company')">从上一年度复制</button>
+          <button class="btn btn-primary btn-sm" id="btnCreateCompanyOkr" style="display:none" onclick="showOkrModal('company')">+ 创建年度 OKR</button>
+        </div>
+      </div>
+      <div class="mindmap-container" id="companyMindmap"></div>
+    </div>
+  </div>
+
+  <!-- ── 部门 OKR 看板 ─────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-dept">
+    <div class="card">
+      <div class="flex-between mb-10">
+        <div class="dept-board-heading">
+          <span style="font-weight:600;font-size:16px">公司月度 OKR 看板</span>
+          <div class="dept-person-filter">
+            <label for="deptBoardPersonFilter">按人员查看</label>
+            <select class="form-input" id="deptBoardPersonFilter" onchange="onDeptBoardPersonFilterChange()" disabled>
+              <option value="">全部人员</option>
+            </select>
+            <span class="dept-person-filter-status" id="deptBoardPersonFilterStatus">加载中...</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button type="button" class="btn btn-ghost btn-sm" id="btnToggleDeptDetails" aria-pressed="false" onclick="toggleDeptOkrDetails()">展开全部员工 O/KR</button>
+          <button class="btn btn-ghost btn-sm" id="btnCopyDeptOkr" style="display:none" onclick="showCopyFromPeriod('department')">从上月复制</button>
+          <button class="btn btn-primary btn-sm" id="btnCreateDeptOkr" style="display:none" onclick="showOkrModal('department')">+ 创建公司月度 OKR</button>
+        </div>
+      </div>
+      <!-- 公司 Tab 条（superAdmin 可见） -->
+      <div id="deptBoardCompanyTabBar" style="display:none;border-bottom:2px solid #e2e8f0;margin-bottom:0;overflow-x:auto;white-space:nowrap"></div>
+      <div id="deptBoardDeptTabBar" style="display:none"></div>
+      <div class="mindmap-container" id="deptMindmap"></div>
+      <aside class="encouragement-ticker" id="encouragementTicker" hidden
+        aria-live="polite" aria-atomic="true" aria-label="最新鼓励动态">
+        <div class="encouragement-ticker-header"><span>♥ 最新鼓励</span><span>最近 10 条</span></div>
+        <div class="encouragement-ticker-viewport" id="encouragementTickerViewport"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ── 个人 OKR 看板 ─────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-personal">
+    <div class="flex-between mb-20">
+      <div class="personal-view-heading">
+        <span id="personalBoardTitle" style="font-weight:600;font-size:16px">我的 OKR</span>
+        <label class="personal-view-switcher" id="personalViewSwitcher">
+          <span>切换员工视角</span>
+          <select class="form-input" id="personalViewUserSelect" onchange="onPersonalViewUserChange()"></select>
+        </label>
+      </div>
+      <div class="personal-view-actions">
+        <button type="button" class="okr-guide-link" id="okrGuideLink" aria-haspopup="dialog" onclick="showModal('okrGuideModal')">如何创建 OKR？</button>
+        <button class="btn btn-primary btn-sm" id="btnCreatePersonalOkr" onclick="showOkrModal('personal')">+ 创建个人 OKR</button>
+      </div>
+    </div>
+    <div class="personal-manage-hint" id="personalManageHint"></div>
+    <div id="personalOkrList"></div>
+  </div>
+
+  <!-- ── OKR 审核中心（公司负责人 / 超级管理员可见） ──────────────── -->
+  <div class="tab-panel" id="tab-audit">
+    <div class="card">
+      <div class="flex-between" style="gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:18px;color:var(--text)">OKR 审核中心</div>
+          <div style="margin-top:5px;color:var(--text-secondary);font-size:12px">统一审核公司成员提交的个人 OKR；目标评估仍用于月末评分。</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="loadPendingReviews()">刷新</button>
+      </div>
+
+      <div class="audit-summary-grid">
+        <div class="audit-summary-item"><div class="audit-summary-label">待审核目标</div><div class="audit-summary-value" id="auditPendingCount">0</div></div>
+        <div class="audit-summary-item"><div class="audit-summary-label">涉及员工</div><div class="audit-summary-value" id="auditEmployeeCount">0</div></div>
+        <div class="audit-summary-item"><div class="audit-summary-label">涉及部门</div><div class="audit-summary-value" id="auditDepartmentCount">0</div></div>
+      </div>
+
+      <div class="audit-toolbar">
+        <input class="form-input audit-search" id="auditSearchInput" type="search" placeholder="搜索员工或目标名称" aria-label="搜索员工或目标名称" oninput="filterPendingReviews()">
+        <select class="form-input" id="auditDepartmentFilter" aria-label="按部门筛选" onchange="filterPendingReviews()">
+          <option value="">全部部门</option>
+        </select>
+        <select class="form-input" id="auditPeriodFilter" aria-label="按月份筛选" onchange="filterPendingReviews()">
+          <option value="">全部月份</option>
+        </select>
+        <span class="audit-result-count" id="auditResultCount">共 0 条</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="audit-table">
+          <thead><tr><th>员工 / 部门</th><th>周期</th><th>OKR 目标</th><th>当前进度</th><th>提交时间</th><th>操作</th></tr></thead>
+          <tbody id="auditReviewList"><tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 统计报表 ───────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-stats">
+    <div class="flex-between mb-10" id="statsToolbar" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-weight:600;font-size:16px">统计报表</span>
+        <select class="form-input" id="statsCompanyFilter" style="width:160px" onchange="onStatsCompanyChange()">
+          <option value="">全部公司</option>
+        </select>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-box" id="chartBar"></div>
+      <div class="chart-box" id="chartRadar"></div>
+      <div class="chart-box" id="chartPie"></div>
+      <!-- 成员 OKR 提交情况（部门 Tab 切换） -->
+      <div class="chart-box" id="statsMemberSection" style="height:380px;display:flex;flex-direction:column;overflow:hidden">
+        <h3 style="font-size:15px;font-weight:600;margin:0 0 10px;color:#334155;flex-shrink:0">成员 OKR 提交情况</h3>
+        <div id="statsDeptTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;flex-shrink:0"></div>
+        <div id="chartMemberTable" style="flex:1;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 目标评估 Tab ────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-review">
+  <div class="member-evaluation-note" id="memberEvaluationRuleNote" role="note">月度总分 =（任务目标原始分 × 70% ＋ 行为目标原始分 × 30%）× 红线系数。每个 O 的评分为自评 20%＋主管评分 80%，再按 O 权重汇总；KR 完成率仅展示，不参与计分。</div>
+  <!-- 工具栏（月份 + 部门筛选 + 导出） -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:14px;color:#64748b">考核月份：<strong id="reviewPeriodLabel" style="color:#334155"></strong></span>
+      <!-- 部门筛选（admin / dept_head 可见，superAdmin 用公司Tab代替） -->
+      <div id="reviewDeptFilterSlot" style="display:none">
+        <select class="form-input" id="reviewDeptFilter" style="width:140px;padding:5px 8px;font-size:13px" onchange="loadReviews()">
+          <option value="">全部部门</option>
+        </select>
+      </div>
+    </div>
+    <div id="reviewExportBtns" style="display:none;gap:8px;align-items:center">
+      <button class="btn btn-ghost" style="font-size:13px;padding:5px 12px" onclick="exportReviewExcel()">⬇ 导出 Excel</button>
+      <button class="btn btn-ghost" style="font-size:13px;padding:5px 12px" onclick="printReviewPDF()">🖨 打印 PDF</button>
+    </div>
+  </div>
+
+  <!-- 公司 Tab 条（仅 superAdmin 可见） -->
+  <div id="reviewCompanyTabBar" style="display:none;border-bottom:2px solid #e2e8f0;margin-bottom:16px;overflow-x:auto;white-space:nowrap">
+    <!-- JS 动态生成 -->
+  </div>
+
+  <!-- 我的待自评（superAdmin 无此区域） -->
+  <div class="card" id="myReviewCard" style="margin-bottom:16px">
+    <div class="flex-between">
+      <div style="font-size:15px;font-weight:600;color:#1e293b">我的月度评估</div>
+      <button type="button" class="btn btn-ghost btn-sm" id="myReviewToggle" style="display:none"
+        aria-expanded="false" aria-controls="myReviewBody" onclick="toggleMyReviewCard()">展开</button>
+    </div>
+    <div id="myReviewBody" class="mt-10" hidden>
+      <div id="myMonthlyEvaluation"></div>
+      <div id="myReviewContent"><p style="color:#94a3b8;font-size:14px">加载中...</p></div>
+    </div>
+  </div>
+
+  <!-- 部门评分总览（dept_head/admin/superAdmin 可见） -->
+  <div class="card" id="deptReviewCard" style="display:none">
+    <div id="deptReviewTitle" style="font-size:15px;font-weight:600;color:#1e293b;margin-bottom:12px">部门评分总览</div>
+    <div id="deptReviewContent"><p style="color:#94a3b8;font-size:14px">加载中...</p></div>
+  </div>
+  </div><!-- /tab-review -->
+</div><!-- /main -->
+
+<!-- ── 创建 OKR 帮助弹窗 ─────────────────────────────────────────────── -->
+<div class="modal-mask" id="okrGuideModal" role="dialog" aria-modal="true" aria-labelledby="okrGuideModalTitle">
+  <div class="modal okr-guide-modal">
+    <div class="modal-title" id="okrGuideModalTitle">如何创建一个好 OKR？</div>
+    <div class="okr-guide-lead">
+      好的 OKR 不是工作清单：Objective 说明“要带来什么变化”，Key Results 说明“用什么结果证明已经做到”。
+    </div>
+    <div class="okr-guide-formula" aria-label="OKR 快速公式">
+      <span>O = 清晰方向 + 业务价值</span>
+      <span>KR = 可量化结果 + 明确标准</span>
+    </div>
+
+    <div class="okr-guide-section-title">三步写清楚</div>
+    <div class="okr-guide-steps">
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head"><span class="okr-guide-step-no">1</span>先写目标 O</div>
+        <p>一句话说明希望谁或什么产生怎样的变化。聚焦结果和价值，避免写成“完成某项任务”。</p>
+      </div>
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head"><span class="okr-guide-step-no">2</span>再写 2–4 个 KR</div>
+        <p>每个 KR 都应可衡量、可验收，并填写当前值、目标值和单位，让任何人都能判断是否达成。</p>
+      </div>
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head"><span class="okr-guide-step-no">3</span>设置权重与对齐</div>
+        <p>按重要程度分配权重；若目标直接支撑公司月度目标，再选择对齐关系，避免为了对齐而对齐。</p>
+      </div>
+    </div>
+
+    <div class="okr-guide-section-title">好坏案例一眼对照</div>
+    <div class="okr-guide-example-grid">
+      <div class="okr-guide-example bad">
+        <div class="okr-guide-example-title">不推荐：只有任务，没有结果</div>
+        <p><strong>O：</strong>完成费用配置功能开发</p>
+        <p><strong>KR1：</strong>完成需求评审</p>
+        <p><strong>KR2：</strong>完成开发和测试</p>
+      </div>
+      <div class="okr-guide-example good">
+        <div class="okr-guide-example-title">推荐：方向清楚，结果可验证</div>
+        <p><strong>O：</strong>建立可独立使用的项目费用配置体系，提升费用与访视管理效率</p>
+        <p><strong>KR1：</strong>支持至少 3 类费用规则，核心场景验收通过率达到 100%</p>
+        <p><strong>KR2：</strong>平均配置耗时从 30 分钟降至 10 分钟以内</p>
+        <p><strong>KR3：</strong>完成 5 个真实项目试用，关键问题关闭率达到 95%</p>
+      </div>
+    </div>
+
+    <div class="okr-guide-section-title">完整填写范例：项目交付岗位</div>
+    <div class="okr-guide-template">
+      <div><strong>目标标题（O）：</strong>提升我负责项目的交付质量，让客户顺利验收并投入使用</div>
+      <div><strong>目标描述：</strong>围绕本月计划交付的 3 个项目，确保核心场景满足客户使用要求，解决验收中的关键问题，以客户验收记录和实际使用情况验证成果。</div>
+      <div><strong>周期：</strong>本月（创建时选择对应月份）</div>
+      <div><strong>权重：</strong>1（默认值；有多个目标时按相对重要程度调整）</div>
+      <div><strong>对齐上级目标：</strong>若公司有“提升项目交付质量与客户满意度”的月度目标，可选择对齐；没有匹配目标时可不对齐。</div>
+    </div>
+    <div class="okr-guide-section-title">对应的 3 个 KR 这样填</div>
+    <div class="okr-guide-steps">
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head">KR1 · 客户实际使用</div>
+        <p><strong>关键结果描述：</strong>本月负责的 3 个项目均通过客户验收并投入使用</p>
+        <p><strong>目标值：</strong>3　<strong>当前值：</strong>1</p>
+        <p><strong>单位：</strong>个</p>
+      </div>
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head">KR2 · 核心场景达标</div>
+        <p><strong>关键结果描述：</strong>本月约定的 20 项核心业务场景全部通过客户验收</p>
+        <p><strong>目标值：</strong>20　<strong>当前值：</strong>12</p>
+        <p><strong>单位：</strong>项</p>
+      </div>
+      <div class="okr-guide-step">
+        <div class="okr-guide-step-head">KR3 · 关键问题闭环</div>
+        <p><strong>关键结果描述：</strong>本月验收清单中的 10 项关键问题全部复验通过并关闭</p>
+        <p><strong>目标值：</strong>10　<strong>当前值：</strong>4</p>
+        <p><strong>单位：</strong>项</p>
+      </div>
+    </div>
+    <div class="okr-guide-checklist">以上数值仅作示例，请按岗位和实际情况调整。当前值填写已达成的数量，尚未开始时填 0；后续更新实际进展。</div>
+
+    <div class="okr-guide-section-title">不会写？直接套用</div>
+    <div class="okr-guide-template">
+      <div><strong>Objective：</strong><code>在【周期】内，通过【关键方向】，让【对象】达到【业务变化】</code></div>
+      <div><strong>Key Result：</strong><code>将【指标】从【当前值】提升/降低到【目标值】</code></div>
+    </div>
+    <div class="okr-guide-checklist" aria-label="提交前检查">
+      <span>目标描述的是结果</span><span>KR 可以量化验收</span><span>2–4 个 KR 足够聚焦</span><span>负责人能实际影响结果</span>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="hideModal('okrGuideModal')">关闭</button>
+      <button type="button" class="btn btn-primary" onclick="hideModal('okrGuideModal');showOkrModal('personal')">开始创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── OKR 审核详情弹窗 ───────────────────────────────────────────── -->
+<div class="modal-mask" id="auditReviewModal" role="dialog" aria-modal="true" aria-labelledby="auditReviewModalTitle">
+  <div class="modal" style="width:720px">
+    <div class="modal-title" id="auditReviewModalTitle">审核个人 OKR</div>
+    <div id="auditReviewDetail"><div style="padding:30px;text-align:center;color:#94a3b8">加载中...</div></div>
+    <div class="audit-detail-section">
+      <label for="auditRejectComment" style="display:block;margin-bottom:6px;color:var(--text-secondary);font-size:13px;font-weight:600">审核意见 <span style="font-weight:400">（驳回时必填）</span></label>
+      <textarea class="form-input" id="auditRejectComment" rows="3" maxlength="500" placeholder="通过时可选填；驳回时请说明需要调整的内容"></textarea>
+      <div class="audit-form-error" id="auditReviewError" role="alert"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closePendingReviewModal()">取消</button>
+      <button type="button" class="btn btn-danger" data-audit-action onclick="submitPendingReview('rejected', this)">驳回</button>
+      <button type="button" class="btn btn-success" data-audit-action onclick="submitPendingReview('approved', this)">通过</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 历史周期模态框 ──────────────────────────────────────────────── -->
+<div class="modal-mask" id="historyPeriodModal" role="dialog" aria-modal="true" aria-labelledby="historyPeriodTitle">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="historyPeriodTitle">查看历史记录</div>
+    <div id="historyMonthlyFields">
+      <div class="form-group">
+        <label for="historyMonthInput">历史月份</label>
+        <input class="form-input" type="month" id="historyMonthInput" aria-describedby="historyPeriodHint">
+        <div class="history-period-hint" id="historyPeriodHint"></div>
+      </div>
+    </div>
+    <div id="historyQuarterlyFields" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label for="historyQuarterYear">年份</label>
+          <input class="form-input" type="number" id="historyQuarterYear" min="2000" max="9999">
+        </div>
+        <div class="form-group">
+          <label for="historyQuarter">季度</label>
+          <select class="form-input" id="historyQuarter">
+            <option value="1">Q1</option>
+            <option value="2">Q2</option>
+            <option value="3">Q3</option>
+            <option value="4">Q4</option>
+          </select>
+        </div>
+      </div>
+      <div class="history-period-hint" id="historyQuarterHint"></div>
+    </div>
+    <div class="history-period-error" id="historyPeriodError" role="alert"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="hideModal('historyPeriodModal')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="applyHistoryPeriod()">查看</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 个人信息模态框 ──────────────────────────────────────────────── -->
+<div class="modal-mask" id="profileModal">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">个人信息</div>
+    <div class="form-group">
+      <label>手机号</label>
+      <input class="form-input" id="profilePhone" disabled>
+    </div>
+    <div class="form-group">
+      <label>角色</label>
+      <input class="form-input" id="profileRole" disabled>
+    </div>
+    <div class="form-group">
+      <label>部门</label>
+      <input class="form-input" id="profileDept" disabled>
+    </div>
+    <div class="form-group">
+      <label>姓名</label>
+      <input class="form-input" id="profileName" placeholder="请输入姓名">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('profileModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveProfile(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 修改密码模态框 ──────────────────────────────────────────────── -->
+<div class="modal-mask" id="pwdModal">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">修改密码</div>
+    <div class="form-group">
+      <label>原密码</label>
+      <input class="form-input" id="pwdOld" type="password" placeholder="请输入原密码">
+    </div>
+    <div class="form-group">
+      <label>新密码</label>
+      <input class="form-input" id="pwdNew" type="password" placeholder="请输入新密码">
+    </div>
+    <div class="form-group">
+      <label>确认新密码</label>
+      <input class="form-input" id="pwdConfirm" type="password" placeholder="请再次输入新密码">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('pwdModal')">取消</button>
+      <button class="btn btn-primary" onclick="savePassword(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── OKR 创建/编辑模态框 ─────────────────────────────────────────── -->
+<div class="modal-mask" id="okrModal">
+  <div class="modal" style="width:600px">
+    <div class="modal-title" id="okrModalTitle">创建 OKR</div>
+    <input type="hidden" id="okrEditId">
+    <input type="hidden" id="okrType">
+    <div class="okr-delegation-hint" id="okrDelegationHint"></div>
+    <div class="form-group">
+      <label>目标标题 (Objective)</label>
+      <input class="form-input" id="okrTitle" placeholder="请输入目标标题">
+    </div>
+    <div class="form-group">
+      <label>目标描述</label>
+      <textarea class="form-input" id="okrDesc" rows="3" placeholder="描述这个目标的意义和预期成果" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group" id="okrCompanyGroup" style="display:none">
+      <label>所属公司 <span style="color:var(--danger)">*</span></label>
+      <select class="form-input" id="okrCompanySelect">
+        <option value="">请选择公司</option>
+      </select>
+    </div>
+    <div class="form-group" id="okrAlignGroup" style="display:none">
+      <label id="okrAlignLabel">对齐上级目标 (可选)</label>
+      <select class="form-input" id="okrAlignTo">
+        <option value="">不对齐</option>
+      </select>
+    </div>
+    <div class="form-group" id="okrPublicGroup" style="display:none">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="okrIsPublic" checked>
+        <span>在公司 OKR 视图中公开展示</span>
+      </label>
+    </div>
+    <div class="okr-period-weight-row">
+      <div class="form-group">
+        <label>周期</label>
+        <select class="form-input" id="okrPeriod"></select>
+      </div>
+      <div class="form-group" id="okrWeightGroup">
+        <label>权重 <span style="color:#94a3b8;font-size:12px">（默认1）</span></label>
+        <input class="form-input" type="number" id="okrWeight" min="0.1" step="0.1" value="1">
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <div class="flex-between mb-10">
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-weight:600;color:var(--text-secondary);font-size:13px">关键结果 (Key Results)</label>
+          <span class="kr-help-icon" onclick="document.getElementById('krHelpTip').style.display=document.getElementById('krHelpTip').style.display==='none'?'block':'none'" title="填写说明">?</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="addKrRow()">+ 添加 KR</button>
+      </div>
+      <div id="krHelpTip" class="kr-help-tip" style="display:none">
+        <b>填写说明</b><br>
+        每个 KR 由 4 个字段组成：<br>
+        &bull; <b>关键结果描述</b>：要达成的具体成果，如"签约客户数达到50家"<br>
+        &bull; <b>目标值</b>：期望达到的数值，如 50<br>
+        &bull; <b>当前值</b>：目前已完成的数值，如 20（系统自动计算完成率 = 当前值/目标值）<br>
+        &bull; <b>单位</b>：度量单位，如 %、个、万元、分<br>
+        <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1">
+          <b>示例</b>：目标值 50、当前值 20、单位"个" → 完成率 40%
+        </div>
+      </div>
+      <div id="krRows"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('okrModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveOkr(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 从上周期复制弹窗 ---------------------------------------------------- -->
+<div class="modal-mask" id="copyPeriodModal">
+  <div class="modal" style="width:560px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title" id="copyPeriodTitle">从上周期复制 OKR</div>
+    <div style="margin-bottom:12px;font-size:13px;color:#64748b" id="copyPeriodHint"></div>
+    <div style="margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="copySelectAll" onchange="toggleCopySelectAll(this.checked)">
+        <span>全选</span>
+      </label>
+    </div>
+    <div id="copyOkrList" style="max-height:400px;overflow-y:auto"></div>
+    <input type="hidden" id="copyOkrType">
+    <input type="hidden" id="copyTargetPeriod">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('copyPeriodModal')">取消</button>
+      <button class="btn btn-primary" id="copyConfirmBtn" onclick="confirmCopyFromPeriod(this)">复制选中项</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 员工月度看板备注 ──────────────────────────────────────────────── -->
+<div class="modal-mask" id="employeeNoteModal" role="dialog" aria-modal="true" aria-labelledby="employeeNoteModalTitle">
+  <div class="modal" style="width:500px">
+    <div class="modal-title" id="employeeNoteModalTitle">员工看板备注</div>
+    <input type="hidden" id="employeeNoteUserId">
+    <input type="hidden" id="employeeNotePeriod">
+    <div class="form-group">
+      <label for="employeeNoteText">备注内容</label>
+      <textarea class="form-input" id="employeeNoteText" rows="5" maxlength="500" style="resize:vertical" placeholder="记录需要跟进、协作或提醒的事项；清空并保存可删除备注"></textarea>
+      <div style="font-size:12px;color:#94a3b8;margin-top:6px">备注按当前月份保存，鼠标移到员工节点即可查看。</div>
+      <div class="audit-form-error" id="employeeNoteError" role="alert"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="hideModal('employeeNoteModal')">取消</button>
+      <button type="button" class="btn btn-primary" id="employeeNoteSaveBtn" onclick="saveEmployeeBoardNote(this)">保存备注</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="/static/okr/okr-common.js?v=20260816-confirm-dialog"></script>
+<script src="/static/okr/okr-mindmap.js?v=20260818-person-filter"></script>
+<script src="/static/okr/okr-charts.js?v=20260816-board-interactions"></script>
+<script src="/static/okr/okr-evaluation.js?v=20261015-pdf1"></script>
+<script>
+// ── 认证检查 ──────────────────────────────────────────────────────────
+if (!requireAuth()) throw '';
+const currentUser = getUser();
+function canUseAuditCenter() {
+  return currentUser.role === 'superAdmin' || !!currentUser.is_company_head;
+}
+
+function syncAuditTabVisibility() {
+  const tab = document.getElementById('auditTabBtn');
+  if (tab) tab.style.display = canUseAuditCenter() ? '' : 'none';
+}
+
+const _phone = currentUser.phone || '';
+const _phoneMask = _phone.length === 11 ? _phone.slice(0, 3) + '****' + _phone.slice(7) : _phone;
+document.getElementById('headerUser').textContent = `${currentUser.name} (${_phoneMask})`;
+// 角色徽章
+const _badge = document.createElement('span');
+_badge.className = `role-badge role-${currentUser.role}`;
+_badge.textContent = roleLabelForUser(currentUser);
+document.getElementById('headerUser').after(_badge);
+setupOkrRoleSwitcher(currentUser, 'roleSwitchLink');
+syncAuditTabVisibility();
+
+// 管理员显示后台入口
+// 企业微信账号不使用本地密码；仅超级管理员应急账号保留密码入口。
+document.getElementById('pwdMenuLink').style.display = currentUser.is_wecom ? 'none' : '';
+
+if (['superAdmin', 'admin'].includes(currentUser.role) || currentUser.is_company_head) {
+  document.getElementById('adminLink').style.display = '';
+}
+// 管理员显示创建/复制公司 OKR 按钮
+if (['superAdmin', 'admin'].includes(currentUser.role) || currentUser.is_company_head) {
+  document.getElementById('btnCreateCompanyOkr').style.display = '';
+  document.getElementById('btnCopyCompanyOkr').style.display = '';
+}
+// 部门负责人/管理员显示创建/复制部门 OKR 按钮
+if (['superAdmin', 'admin'].includes(currentUser.role) || currentUser.is_company_head) {
+  document.getElementById('btnCreateDeptOkr').style.display = '';
+  document.getElementById('btnCopyDeptOkr').style.display = '';
+}
+// superAdmin: 隐藏个人 OKR Tab，显示公司看板筛选器
+if (currentUser.role === 'superAdmin') {
+  document.querySelector('[data-tab="tab-personal"]').style.display = 'none';
+  document.getElementById('companyBoardFilter').style.display = '';
+  // 加载公司列表（仅用于公司看板和统计筛选器）
+  (async function loadBoardCompanies() {
+    try {
+      const companies = await api('/api/okr/companies', { noAuth: true });
+      const opts = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('companyBoardFilter').innerHTML = '<option value="">全部公司</option>' + opts;
+      document.getElementById('statsCompanyFilter').innerHTML = '<option value="">全部公司</option>' + opts;
+    } catch {}
+  })();
+}
+
+// ── Tab 初始化 ────────────────────────────────────────────────────────
+initTabs('boardTabs');
+document.getElementById('boardTabs').addEventListener('tabChange', e => {
+  loadCurrentTab();
+});
+
+// ── 周期选项 ──────────────────────────────────────────────────────────
+const PERIOD_WINDOW_MONTHS = 6;
+let _currentPeriodType = 'monthly';
+let _regularPeriodValues = [];
+
+function _monthValue(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _periodLabel(value) {
+  const monthly = /^(\d{4})-(\d{2})$/.exec(value);
+  if (monthly) return `${monthly[1]}年${parseInt(monthly[2], 10)}月`;
+  return value;
+}
+
+function _quarterIndex(value) {
+  const match = /^(\d{4})-Q([1-4])$/.exec(value);
+  return match ? parseInt(match[1], 10) * 4 + parseInt(match[2], 10) - 1 : null;
+}
+
+function _ensurePeriodOption(select, value, isHistory = false) {
+  if (!select || !value) return;
+  let option = Array.from(select.options).find(item => item.value === value);
+  if (!option) {
+    option = document.createElement('option');
+    option.value = value;
+    option.textContent = `${isHistory ? '历史：' : ''}${_periodLabel(value)}`;
+    if (isHistory) option.dataset.history = 'true';
+    select.insertBefore(option, select.firstChild);
+  }
+}
+
+function initPeriods(type) {
+  const sel = document.getElementById('periodSelect');
+  const okrPeriod = document.getElementById('okrPeriod');
+  sel.innerHTML = '';
+  okrPeriod.innerHTML = '';
+  _currentPeriodType = type;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-12
+  const periods = [];
+  let defaultPeriod = '';
+
+  if (type === 'quarterly') {
+    const q = Math.ceil(month / 3);
+    for (let y = year; y >= year - 1; y--) {
+      for (let qi = 4; qi >= 1; qi--) {
+        periods.push({ value: `${y}-Q${qi}`, label: `${y}-Q${qi}` });
+      }
+    }
+    defaultPeriod = `${year}-Q${q}`;
+  } else {
+    // monthly（默认）：过去6个月 + 当月 + 未来6个月
+    for (let offset = -PERIOD_WINDOW_MONTHS; offset <= PERIOD_WINDOW_MONTHS; offset++) {
+      const d = new Date(year, month - 1 + offset, 1);
+      const value = _monthValue(d);
+      periods.push({ value, label: _periodLabel(value) });
+    }
+    defaultPeriod = `${year}-${String(month).padStart(2, '0')}`;
+  }
+
+  _regularPeriodValues = periods.map(period => period.value);
+
+  periods.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.value;
+    opt.textContent = p.label;
+    if (p.value === defaultPeriod) opt.selected = true;
+    sel.appendChild(opt);
+    okrPeriod.appendChild(opt.cloneNode(true));
+  });
+}
+
+function currentPeriod() {
+  return document.getElementById('periodSelect').value;
+}
+
+function onPeriodChange() {
+  const sel = document.getElementById('periodSelect');
+  const selected = sel.options[sel.selectedIndex];
+  if (!selected || selected.dataset.history !== 'true') {
+    sel.querySelectorAll('option[data-history="true"]').forEach(option => option.remove());
+    document.getElementById('okrPeriod').querySelectorAll('option[data-history="true"]').forEach(option => option.remove());
+  }
+  loadCurrentTab();
+}
+
+function _showHistoryPeriodError(message) {
+  const error = document.getElementById('historyPeriodError');
+  error.textContent = message;
+  error.style.display = message ? 'block' : 'none';
+}
+
+function openHistoryPeriodModal() {
+  _showHistoryPeriodError('');
+  const isQuarterly = _currentPeriodType === 'quarterly';
+  document.getElementById('historyMonthlyFields').style.display = isQuarterly ? 'none' : '';
+  document.getElementById('historyQuarterlyFields').style.display = isQuarterly ? '' : 'none';
+
+  if (isQuarterly) {
+    const indexes = _regularPeriodValues.map(_quarterIndex);
+    const oldest = Math.min(...indexes);
+    const latest = Math.max(...indexes);
+    const previous = oldest - 1;
+    const year = Math.floor(previous / 4);
+    const quarter = previous % 4 + 1;
+    const latestValue = `${Math.floor(latest / 4)}-Q${latest % 4 + 1}`;
+    document.getElementById('historyQuarterYear').value = year;
+    document.getElementById('historyQuarter').value = quarter;
+    document.getElementById('historyQuarterHint').textContent =
+      `常用下拉框已包含至 ${_periodLabel(latestValue)}，请选择更早的季度。`;
+  } else {
+    const oldest = _regularPeriodValues[0];
+    const [year, month] = oldest.split('-').map(Number);
+    const previousDate = new Date(year, month - 2, 1);
+    const latestHistory = _monthValue(previousDate);
+    const input = document.getElementById('historyMonthInput');
+    input.max = latestHistory;
+    input.value = /^(\d{4})-(\d{2})$/.test(currentPeriod()) && currentPeriod() < oldest
+      ? currentPeriod()
+      : latestHistory;
+    document.getElementById('historyPeriodHint').textContent =
+      `常用下拉框已包含 ${_periodLabel(oldest)} 至 ${_periodLabel(_regularPeriodValues[_regularPeriodValues.length - 1])}，请选择 ${_periodLabel(latestHistory)} 或更早月份。`;
+  }
+
+  showModal('historyPeriodModal');
+  setTimeout(() => {
+    const target = document.getElementById(isQuarterly ? 'historyQuarterYear' : 'historyMonthInput');
+    if (target) target.focus();
+  }, 0);
+}
+
+function applyHistoryPeriod() {
+  let value = '';
+  if (_currentPeriodType === 'quarterly') {
+    const year = parseInt(document.getElementById('historyQuarterYear').value, 10);
+    const quarter = parseInt(document.getElementById('historyQuarter').value, 10);
+    value = `${year}-Q${quarter}`;
+    const selectedIndex = _quarterIndex(value);
+    const oldestRegularIndex = Math.min(..._regularPeriodValues.map(_quarterIndex));
+    if (!Number.isInteger(year) || year < 2000 || selectedIndex === null || selectedIndex >= oldestRegularIndex) {
+      _showHistoryPeriodError('请选择常用周期范围之前的季度。');
+      return;
+    }
+  } else {
+    value = document.getElementById('historyMonthInput').value;
+    const oldestRegular = _regularPeriodValues[0];
+    if (!/^(\d{4})-(0[1-9]|1[0-2])$/.test(value) || value >= oldestRegular) {
+      _showHistoryPeriodError(`请选择 ${_periodLabel(oldestRegular)} 之前的月份。`);
+      return;
+    }
+  }
+
+  const sel = document.getElementById('periodSelect');
+  sel.querySelectorAll('option[data-history="true"]').forEach(option => option.remove());
+  const okrPeriod = document.getElementById('okrPeriod');
+  okrPeriod.querySelectorAll('option[data-history="true"]').forEach(option => option.remove());
+  _ensurePeriodOption(sel, value, true);
+  _ensurePeriodOption(okrPeriod, value, true);
+  sel.value = value;
+  hideModal('historyPeriodModal');
+  loadCurrentTab();
+}
+
+// ── 数据加载 ──────────────────────────────────────────────────────────
+
+let userDeptId = null;
+let _personalViewUsers = [];
+let _personalViewUserId = null;
+
+function selectedPersonalViewUser() {
+  return _personalViewUsers.find(item => item.id === _personalViewUserId) || {
+    id: currentUser.id,
+    name: currentUser.name,
+    department_id: currentUser.department_id,
+  };
+}
+
+function syncPersonalViewChrome(viewUser) {
+  const selected = viewUser || selectedPersonalViewUser();
+  const isSelf = selected.id === currentUser.id;
+  document.getElementById('personalBoardTitle').textContent = isSelf ? '我的 OKR' : `${selected.name}的 OKR`;
+  document.getElementById('btnCreatePersonalOkr').textContent = isSelf ? '+ 创建个人 OKR' : `+ 为${selected.name}创建 OKR`;
+  const hint = document.getElementById('personalManageHint');
+  if (currentUser.is_company_head) {
+    hint.style.display = '';
+    hint.textContent = `公司负责人正在维护${isSelf ? '本人' : selected.name}的个人 OKR；创建或修改后将直接生效，无需提交审批。`;
+  } else {
+    hint.style.display = 'none';
+    hint.textContent = '';
+  }
+}
+
+async function initPersonalViewSwitcher() {
+  _personalViewUserId = currentUser.id;
+  _personalViewUsers = [{
+    id: currentUser.id,
+    name: currentUser.name,
+    department_id: currentUser.department_id,
+    department_name: currentUser.department_name || '',
+  }];
+  if (!currentUser.is_company_head) {
+    syncPersonalViewChrome();
+    return;
+  }
+  const users = await api('/api/okr/personal-view/employees');
+  _personalViewUsers = users;
+  const select = document.getElementById('personalViewUserSelect');
+  select.innerHTML = '';
+  users.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.textContent = `${item.name}${item.department_name ? `（${item.department_name}）` : ''}`;
+    select.appendChild(option);
+  });
+  select.value = String(currentUser.id);
+  document.getElementById('personalViewSwitcher').style.display = 'flex';
+  syncPersonalViewChrome();
+}
+
+function onPersonalViewUserChange() {
+  _personalViewUserId = parseInt(document.getElementById('personalViewUserSelect').value, 10) || currentUser.id;
+  syncPersonalViewChrome();
+  loadPersonalBoard();
+}
+
+async function initUserDept() {
+  try {
+    const me = await api('/api/okr/auth/me');
+    userDeptId = me.department_id;
+    currentUser.department_id = me.department_id;
+    currentUser.company_period_type = me.company_period_type || 'monthly';
+    currentUser.is_company_head = !!me.is_company_head;
+    currentUser.department_name = me.department_name || '';
+    syncAuditTabVisibility();
+    if (currentUser.is_company_head) {
+      document.getElementById('btnCreateCompanyOkr').style.display = '';
+      document.getElementById('btnCopyCompanyOkr').style.display = '';
+      document.getElementById('btnCreateDeptOkr').style.display = '';
+      document.getElementById('btnCopyDeptOkr').style.display = '';
+    }
+    // 显示公司名称
+    const companyEl = document.getElementById('headerCompany');
+    if (companyEl && me.company_name) {
+      companyEl.textContent = '| ' + me.company_name;
+    } else if (companyEl && currentUser.role === 'superAdmin') {
+      companyEl.textContent = '| 全局管理';
+    }
+  } catch {}
+  try { await initPersonalViewSwitcher(); }
+  catch (e) { toast(e.message, 'error'); syncPersonalViewChrome(); }
+  // Period 选择器根据公司配置生成（superAdmin 默认月度）
+  initPeriods(currentUser.company_period_type || 'monthly');
+}
+
+async function loadCurrentTab() {
+  const active = document.querySelector('.tab-panel.active');
+  if (!active) return;
+  if (active.id !== 'tab-dept') stopEncouragementTicker();
+  document.getElementById('mainPeriodSelector').style.display = active.id === 'tab-audit' ? 'none' : '';
+  if (active.id === 'tab-company') loadCompanyBoard();
+  else if (active.id === 'tab-dept') loadDeptBoard();
+  else if (active.id === 'tab-personal') loadPersonalBoard();
+  else if (active.id === 'tab-audit') loadPendingReviews();
+  else if (active.id === 'tab-stats') loadStats();
+  else if (active.id === 'tab-review') loadReviews();
+}
+
+// ── 公司看板 ──────────────────────────────────────────────────────────
+
+async function loadCompanyBoard() {
+  try {
+    let url = `/api/okr/board/company?period=${currentPeriod()}`;
+    // superAdmin 可按公司筛选
+    if (currentUser.role === 'superAdmin') {
+      const cid = document.getElementById('companyBoardFilter').value;
+      if (cid) url += `&company_id=${cid}`;
+    }
+    const data = await api(url);
+    const canEdit = ['superAdmin', 'admin'].includes(currentUser.role) || currentUser.is_company_head;
+    const canDelete = canEdit;
+    OKRMindmap.renderCompany('companyMindmap', data, {
+      onEditCompany: canEdit ? editCompanyOkr : null,
+      onDeleteCompany: canDelete ? deleteCompanyOkr : null,
+      onDeleteDept: canDelete ? deleteCompanyViewDeptOkr : null,
+    });
+  } catch (e) {
+    document.getElementById('companyMindmap').innerHTML =
+      `<div class="empty-state"><div class="icon">🏢</div><p>${e.message}</p></div>`;
+  }
+}
+
+// ── 部门看板 ──────────────────────────────────────────────────────────
+
+// 公司 Tab 状态（superAdmin）
+let _deptBoardCompanies = [];
+let _deptBoardActiveCompanyId = null;
+let _deptBoardCompaniesLoaded = false;
+// 部门 Tab 状态（superAdmin / admin）
+let _deptBoardDepts = [];
+let _deptBoardActiveDeptId = null;
+let _deptBoardDeptsLoaded = false;
+let _deptDetailsExpanded = false;
+let _monthlyCompanyBoardData = null;
+let _deptBoardPersonId = '';
+
+function setupDeptBoardPersonFilter(data) {
+  const select = document.getElementById('deptBoardPersonFilter');
+  const status = document.getElementById('deptBoardPersonFilterStatus');
+  const members = [...(data?.members || [])].sort((a, b) => {
+    const deptCompare = (a.user.department_name || '').localeCompare(b.user.department_name || '', 'zh-CN');
+    return deptCompare || (a.user.name || '').localeCompare(b.user.name || '', 'zh-CN');
+  });
+  const previousId = String(_deptBoardPersonId || '');
+  select.innerHTML = '';
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = '全部人员';
+  select.appendChild(allOption);
+  members.forEach(member => {
+    const option = document.createElement('option');
+    option.value = String(member.user.id);
+    option.textContent = `${member.user.name} · ${member.user.department_name || '未分配部门'}`;
+    select.appendChild(option);
+  });
+  const canKeepSelection = previousId && members.some(member => String(member.user.id) === previousId);
+  select.value = canKeepSelection ? previousId : '';
+  _deptBoardPersonId = select.value;
+  select.disabled = members.length === 0;
+  status.textContent = members.length ? `共 ${members.length} 人` : '暂无人员';
+}
+
+function filteredMonthlyCompanyBoardData(data) {
+  if (!data || !_deptBoardPersonId) return data;
+  const selectedMember = (data.members || []).find(
+    member => String(member.user.id) === String(_deptBoardPersonId)
+  );
+  if (!selectedMember) return { ...data, dept_okrs: [], members: [] };
+  const alignedObjectiveIds = new Set(
+    (selectedMember.okrs || []).map(objective => Number(objective.aligned_objective_id)).filter(Boolean)
+  );
+  return {
+    ...data,
+    dept_okrs: (data.dept_okrs || []).filter(objective => alignedObjectiveIds.has(Number(objective.id))),
+    members: [selectedMember],
+  };
+}
+
+function renderMonthlyCompanyBoardData() {
+  if (!_monthlyCompanyBoardData) return;
+  const canManage = ['superAdmin', 'admin'].includes(currentUser.role) || currentUser.is_company_head;
+  const filteredData = filteredMonthlyCompanyBoardData(_monthlyCompanyBoardData);
+  OKRMindmap.renderDepartment('deptMindmap', filteredData, {
+    onEditDept: canManage ? editDeptOkr : null,
+    onDeleteDept: canManage ? deleteDeptOkrFromView : null,
+    onDeletePersonal: canManage ? deletePersonalOkrFromDept : null,
+    onEditEmployeeNote: openEmployeeNoteModal,
+    onToggleEncouragement: toggleObjectiveEncouragement,
+    currentUserId: currentUser.id,
+  });
+  const status = document.getElementById('deptBoardPersonFilterStatus');
+  if (_deptBoardPersonId) {
+    const selected = (_monthlyCompanyBoardData.members || []).find(
+      member => String(member.user.id) === String(_deptBoardPersonId)
+    );
+    status.textContent = selected ? `仅显示 ${selected.user.name}` : '未找到该人员';
+  } else {
+    status.textContent = `共 ${(_monthlyCompanyBoardData.members || []).length} 人`;
+  }
+  resetDeptOkrDetailsToggle(!OKRMindmap.hasTree('deptMindmap'));
+}
+
+function onDeptBoardPersonFilterChange() {
+  _deptBoardPersonId = document.getElementById('deptBoardPersonFilter').value;
+  renderMonthlyCompanyBoardData();
+}
+
+function openEmployeeNoteModal(userId, note, employeeName) {
+  const period = currentPeriod();
+  document.getElementById('employeeNoteUserId').value = String(userId);
+  document.getElementById('employeeNotePeriod').value = period;
+  document.getElementById('employeeNoteText').value = note || '';
+  document.getElementById('employeeNoteModalTitle').textContent = `${employeeName} · ${_periodLabel(period)}看板备注`;
+  const error = document.getElementById('employeeNoteError');
+  error.textContent = '';
+  error.style.display = 'none';
+  showModal('employeeNoteModal');
+  setTimeout(() => document.getElementById('employeeNoteText').focus(), 0);
+}
+
+async function saveEmployeeBoardNote(btn) {
+  const employeeId = Number(document.getElementById('employeeNoteUserId').value);
+  const period = document.getElementById('employeeNotePeriod').value;
+  const note = document.getElementById('employeeNoteText').value.trim();
+  const error = document.getElementById('employeeNoteError');
+  if (!employeeId) return;
+  btn.disabled = true;
+  error.style.display = 'none';
+  try {
+    await api(`/api/okr/board/employees/${employeeId}/note`, {
+      method: 'PUT', body: { period, note },
+    });
+    hideModal('employeeNoteModal');
+    toast(note ? '员工备注已保存' : '员工备注已清除', 'success');
+    await loadDeptBoard();
+  } catch (e) {
+    error.textContent = e.message || '备注保存失败';
+    error.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const _encouragementRequests = new Set();
+const ENCOURAGEMENT_TICKER_INTERVAL_MS = 4000;
+let _recentEncouragements = [];
+let _encouragementTickerIndex = 0;
+let _encouragementTickerTimer = null;
+let _encouragementTickerTransition = null;
+
+function _clearEncouragementTickerTimers() {
+  if (_encouragementTickerTimer) clearInterval(_encouragementTickerTimer);
+  if (_encouragementTickerTransition) clearTimeout(_encouragementTickerTransition);
+  _encouragementTickerTimer = null;
+  _encouragementTickerTransition = null;
+}
+
+function stopEncouragementTicker(clearItems = false) {
+  _clearEncouragementTickerTimers();
+  document.getElementById('encouragementTicker').hidden = true;
+  document.getElementById('encouragementTickerViewport').replaceChildren();
+  if (clearItems) _recentEncouragements = [];
+}
+
+function _createEncouragementTickerItem(item) {
+  const row = document.createElement('div');
+  row.className = 'encouragement-ticker-item';
+  const heart = document.createElement('span');
+  heart.className = 'encouragement-ticker-heart';
+  heart.textContent = '♥';
+  const copy = document.createElement('div');
+  copy.className = 'encouragement-ticker-copy';
+  const message = document.createElement('div');
+  message.className = 'encouragement-ticker-message';
+  const employee = document.createElement('strong');
+  employee.textContent = item.employee_name || '一位同事';
+  message.append(employee, document.createTextNode(' 收到一次鼓励'));
+  const objective = document.createElement('div');
+  objective.className = 'encouragement-ticker-objective';
+  objective.textContent = item.objective_title || '个人 Object';
+  copy.append(message, objective);
+  row.append(heart, copy);
+  return row;
+}
+
+function _showEncouragementTickerItem(immediate = false) {
+  if (!_recentEncouragements.length) return;
+  const viewport = document.getElementById('encouragementTickerViewport');
+  const nextItem = _createEncouragementTickerItem(
+    _recentEncouragements[_encouragementTickerIndex % _recentEncouragements.length]
+  );
+  const showNext = () => {
+    viewport.replaceChildren(nextItem);
+    if (immediate) nextItem.classList.add('is-visible');
+    else requestAnimationFrame(() => nextItem.classList.add('is-visible'));
+  };
+  const current = viewport.querySelector('.encouragement-ticker-item');
+  if (!current || immediate) {
+    showNext();
+    return;
+  }
+  current.classList.add('is-leaving');
+  _encouragementTickerTransition = setTimeout(showNext, 280);
+}
+
+function setEncouragementTicker(items) {
+  _clearEncouragementTickerTimers();
+  const seen = new Set();
+  const uniqueItems = [];
+  (Array.isArray(items) ? items : []).forEach(item => {
+    if (!item?.key || seen.has(item.key)) return;
+    seen.add(item.key);
+    uniqueItems.push(item);
+  });
+  _recentEncouragements = uniqueItems.slice(0, 10);
+  _encouragementTickerIndex = 0;
+  const ticker = document.getElementById('encouragementTicker');
+  const monthlyBoardVisible = document.getElementById('tab-dept').classList.contains('active');
+  if (!_recentEncouragements.length || !monthlyBoardVisible) {
+    ticker.hidden = true;
+    document.getElementById('encouragementTickerViewport').replaceChildren();
+    return;
+  }
+  ticker.hidden = false;
+  _showEncouragementTickerItem(true);
+  if (_recentEncouragements.length > 1) {
+    _encouragementTickerTimer = setInterval(() => {
+      _encouragementTickerIndex = (_encouragementTickerIndex + 1) % _recentEncouragements.length;
+      _showEncouragementTickerItem();
+    }, ENCOURAGEMENT_TICKER_INTERVAL_MS);
+  }
+}
+
+function reconcileEncouragementTicker(recentEncouragement, removedKey) {
+  let nextItems = _recentEncouragements.filter(item => item.key !== removedKey);
+  if (recentEncouragement?.key) {
+    nextItems = [
+      recentEncouragement,
+      ...nextItems.filter(item => item.key !== recentEncouragement.key),
+    ];
+  }
+  setEncouragementTicker(nextItems);
+}
+
+async function toggleObjectiveEncouragement(objectiveId) {
+  const previousState = OKRMindmap.getObjectiveEncouragement('deptMindmap', objectiveId);
+  if (!previousState || previousState.pending || _encouragementRequests.has(objectiveId)) return;
+  const optimisticState = {
+    encouraged: !previousState.encouraged,
+    count: Math.max(0, previousState.count + (previousState.encouraged ? -1 : 1)),
+    pending: true,
+  };
+  if (!OKRMindmap.updateObjectiveEncouragement('deptMindmap', objectiveId, optimisticState)) return;
+  _encouragementRequests.add(objectiveId);
+  try {
+    const result = await api(`/api/okr/objectives/${objectiveId}/encouragement`, { method: 'POST' });
+    OKRMindmap.updateObjectiveEncouragement('deptMindmap', objectiveId, {
+      encouraged: !!result.encouraged,
+      count: Number(result.encouragement_count) || 0,
+      pending: false,
+    });
+    reconcileEncouragementTicker(
+      result.recent_encouragement,
+      result.removed_encouragement_key
+    );
+    toast(result.encouraged ? '已送出鼓励' : '已取消鼓励', 'success');
+  } catch (e) {
+    OKRMindmap.updateObjectiveEncouragement('deptMindmap', objectiveId, {
+      encouraged: previousState.encouraged,
+      count: previousState.count,
+      pending: false,
+    });
+    toast(e.message || '鼓励操作失败', 'error');
+  } finally {
+    _encouragementRequests.delete(objectiveId);
+  }
+}
+
+function resetDeptOkrDetailsToggle(disabled = false) {
+  _deptDetailsExpanded = false;
+  const button = document.getElementById('btnToggleDeptDetails');
+  button.disabled = disabled;
+  button.textContent = '展开全部员工 O/KR';
+  button.setAttribute('aria-pressed', 'false');
+}
+
+function toggleDeptOkrDetails() {
+  const shouldExpand = !_deptDetailsExpanded;
+  const updated = shouldExpand
+    ? OKRMindmap.expandAllDetails('deptMindmap')
+    : OKRMindmap.collapseAllDetails('deptMindmap');
+  if (!updated) {
+    toast('当前没有可展开的员工 O/KR', 'info');
+    return;
+  }
+  _deptDetailsExpanded = shouldExpand;
+  const button = document.getElementById('btnToggleDeptDetails');
+  button.textContent = shouldExpand ? '收起全部员工 O/KR' : '展开全部员工 O/KR';
+  button.setAttribute('aria-pressed', shouldExpand ? 'true' : 'false');
+}
+
+async function loadDeptBoard() {
+  if (currentUser.role === 'superAdmin') {
+    document.getElementById('deptBoardCompanyTabBar').style.display = '';
+    if (!_deptBoardCompaniesLoaded) {
+      await _loadDeptBoardCompanies();
+    } else {
+      _renderDeptBoardCompanyTabs();
+      if (_deptBoardActiveCompanyId) await _renderMonthlyCompanyMindmap(_deptBoardActiveCompanyId);
+    }
+  } else {
+    document.getElementById('deptBoardCompanyTabBar').style.display = 'none';
+    document.getElementById('deptBoardDeptTabBar').style.display = 'none';
+    if (!currentUser.company_id) {
+      document.getElementById('deptMindmap').innerHTML =
+        '<div class="empty-state"><div class="icon">🏢</div><p>未分配公司，请联系管理员</p></div>';
+      return;
+    }
+    await _renderMonthlyCompanyMindmap(currentUser.company_id);
+  }
+}
+
+/** 加载公司列表并初始化公司 Tab（superAdmin） */
+async function _loadDeptBoardCompanies() {
+  _deptBoardCompaniesLoaded = true;
+  try {
+    const list = await api('/api/okr/companies', { noAuth: true });
+    _deptBoardCompanies = list.filter(c => c.status !== 'disabled');
+    if (_deptBoardCompanies.length && !_deptBoardActiveCompanyId) {
+      _deptBoardActiveCompanyId = _deptBoardCompanies[0].id;
+    }
+    _renderDeptBoardCompanyTabs();
+    if (_deptBoardActiveCompanyId) await _renderMonthlyCompanyMindmap(_deptBoardActiveCompanyId);
+    else document.getElementById('deptMindmap').innerHTML =
+      '<div class="empty-state"><div class="icon">🏬</div><p>暂无公司数据</p></div>';
+  } catch (e) {
+    document.getElementById('deptBoardCompanyTabBar').innerHTML =
+      '<span style="font-size:13px;color:#ef4444;padding:8px">加载公司列表失败</span>';
+  }
+}
+
+function _renderDeptBoardCompanyTabs() {
+  const bar = document.getElementById('deptBoardCompanyTabBar');
+  if (!_deptBoardCompanies.length) {
+    bar.innerHTML = '<span style="font-size:13px;color:#94a3b8;padding:8px 0;display:inline-block">暂无公司数据</span>';
+    return;
+  }
+  const base = 'border:none;background:none;cursor:pointer;font-size:14px;padding:8px 20px;margin-right:4px;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s';
+  bar.innerHTML = _deptBoardCompanies.map(c => {
+    const active = c.id === _deptBoardActiveCompanyId;
+    const style = active ? `${base};color:#6366f1;font-weight:600;border-bottom-color:#6366f1` : `${base};color:#64748b`;
+    return `<button style="${style}" onclick="switchDeptBoardCompany(${c.id})">${c.name}</button>`;
+  }).join('');
+}
+
+/** 切换公司 Tab（superAdmin） */
+async function switchDeptBoardCompany(companyId) {
+  _deptBoardActiveCompanyId = companyId;
+  _renderDeptBoardCompanyTabs();
+  document.getElementById('deptMindmap').innerHTML = '';
+  await _renderMonthlyCompanyMindmap(companyId);
+}
+
+async function _renderMonthlyCompanyMindmap(companyId) {
+  stopEncouragementTicker(true);
+  resetDeptOkrDetailsToggle(true);
+  document.getElementById('deptBoardPersonFilter').disabled = true;
+  document.getElementById('deptBoardPersonFilterStatus').textContent = '加载中...';
+  document.getElementById('deptMindmap').innerHTML =
+    '<div class="empty-state"><div class="icon">⏳</div><p>加载中...</p></div>';
+  try {
+    const data = await api(`/api/okr/board/monthly-company?company_id=${companyId}&period=${currentPeriod()}`);
+    _monthlyCompanyBoardData = data;
+    setupDeptBoardPersonFilter(data);
+    renderMonthlyCompanyBoardData();
+    setEncouragementTicker(data.recent_encouragements || []);
+  } catch (e) {
+    _monthlyCompanyBoardData = null;
+    stopEncouragementTicker(true);
+    resetDeptOkrDetailsToggle(true);
+    document.getElementById('deptBoardPersonFilter').disabled = true;
+    document.getElementById('deptBoardPersonFilterStatus').textContent = '加载失败';
+    document.getElementById('deptMindmap').innerHTML =
+      `<div class="empty-state"><div class="icon">🏢</div><p>${e.message}</p></div>`;
+  }
+}
+
+/** 加载部门列表并初始化部门 Tab */
+async function _loadDeptBoardDepts(companyId) {
+  _deptBoardDeptsLoaded = true;
+  try {
+    const depts = await api(`/api/okr/departments?company_id=${companyId}`, { noAuth: true });
+    _deptBoardDepts = depts;
+    if (depts.length && !_deptBoardActiveDeptId) {
+      // admin 优先选自己所在部门
+      const own = depts.find(d => d.id === userDeptId);
+      _deptBoardActiveDeptId = own ? own.id : depts[0].id;
+    }
+    const bar = document.getElementById('deptBoardDeptTabBar');
+    bar.style.display = depts.length ? '' : 'none';
+    _renderDeptBoardDeptTabs();
+    if (_deptBoardActiveDeptId) await _renderDeptMindmap(_deptBoardActiveDeptId);
+    else document.getElementById('deptMindmap').innerHTML =
+      '<div class="empty-state"><div class="icon">🏬</div><p>该公司暂无部门</p></div>';
+  } catch (e) {
+    document.getElementById('deptBoardDeptTabBar').innerHTML =
+      '<span style="font-size:13px;color:#ef4444;padding:8px">加载部门列表失败</span>';
+  }
+}
+
+function _renderDeptBoardDeptTabs() {
+  const bar = document.getElementById('deptBoardDeptTabBar');
+  if (!_deptBoardDepts.length) {
+    bar.innerHTML = '<span style="font-size:13px;color:#94a3b8;padding:8px 0;display:inline-block">该公司暂无部门</span>';
+    return;
+  }
+  const base = 'border:none;background:none;cursor:pointer;font-size:13px;padding:7px 16px;margin-right:2px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s';
+  bar.innerHTML = _deptBoardDepts.map(d => {
+    const active = d.id === _deptBoardActiveDeptId;
+    const style = active ? `${base};color:#6366f1;font-weight:600;border-bottom-color:#6366f1` : `${base};color:#64748b`;
+    return `<button style="${style}" onclick="switchDeptBoardDept(${d.id})">${d.name}</button>`;
+  }).join('');
+}
+
+/** 切换部门 Tab */
+async function switchDeptBoardDept(deptId) {
+  _deptBoardActiveDeptId = deptId;
+  _renderDeptBoardDeptTabs();
+  await _renderDeptMindmap(deptId);
+}
+
+/** 渲染指定部门脑图 */
+async function _renderDeptMindmap(deptId) {
+  resetDeptOkrDetailsToggle(true);
+  document.getElementById('deptMindmap').innerHTML =
+    '<div class="empty-state"><div class="icon">⏳</div><p>加载中...</p></div>';
+  try {
+    const data = await api(`/api/okr/board/department/${deptId}?period=${currentPeriod()}`);
+    const canEdit = ['superAdmin', 'admin', 'dept_head'].includes(currentUser.role);
+    const canDeleteDept = ['superAdmin', 'admin'].includes(currentUser.role);
+    const canDeletePersonal = ['superAdmin', 'admin', 'dept_head'].includes(currentUser.role);
+    OKRMindmap.renderDepartment('deptMindmap', data, {
+      onEditDept: canEdit ? editDeptOkr : null,
+      onDeleteDept: canDeleteDept ? deleteDeptOkrFromView : null,
+      onDeletePersonal: canDeletePersonal ? deletePersonalOkrFromDept : null,
+      onEditEmployeeNote: openEmployeeNoteModal,
+      onToggleEncouragement: toggleObjectiveEncouragement,
+      currentUserId: currentUser.id,
+    });
+    resetDeptOkrDetailsToggle(!OKRMindmap.hasTree('deptMindmap'));
+  } catch (e) {
+    resetDeptOkrDetailsToggle(true);
+    document.getElementById('deptMindmap').innerHTML =
+      `<div class="empty-state"><div class="icon">🏬</div><p>${e.message}</p></div>`;
+  }
+}
+
+// ── 个人看板 ──────────────────────────────────────────────────────────
+
+async function loadPersonalBoard() {
+  try {
+    const targetArg = currentUser.is_company_head && _personalViewUserId
+      ? `&user_id=${_personalViewUserId}` : '';
+    const data = await api(`/api/okr/board/personal?period=${currentPeriod()}${targetArg}`);
+    if (data.view_user) syncPersonalViewChrome(data.view_user);
+    renderPersonalOkrs(data.objectives, !!data.can_manage);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderPersonalOkrs(objectives, canManage = false) {
+  const container = document.getElementById('personalOkrList');
+  if (!objectives || objectives.length === 0) {
+    const target = selectedPersonalViewUser();
+    const emptyText = target.id === currentUser.id ? '还没有创建 OKR，点击上方按钮开始' : `${_escapeAuditHTML(target.name)}本月还没有个人 OKR，可点击上方按钮代为创建`;
+    container.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>${emptyText}</p></div>`;
+    return;
+  }
+  // 计算所有 O 的权重总和，用于归一化百分比
+  const objTotalW = objectives.reduce((s, o) => s + (o.weight || 1), 0);
+
+  container.innerHTML = objectives.map(obj => {
+    const statusCls = obj.status || 'draft';
+    let aligned = '';
+    if (obj.aligned_objective) {
+      aligned = `<div class="aligned-tag">🔗 对齐: ${obj.aligned_objective.title} (${Math.round(obj.aligned_objective.progress || 0)}%)</div>`;
+    }
+    const krList = obj.key_results || [];
+    const krTotalW = krList.reduce((s, k) => s + (k.weight || 1), 0);
+    const krs = krList.map(kr => {
+      const wpct = krTotalW > 0 ? Math.round((kr.weight || 1) / krTotalW * 100) : 0;
+      return `
+      <div class="kr-item">
+        <span class="kr-dot"></span>
+        <span class="kr-title">${kr.title}</span>
+        <span class="kr-wpct-tag">权重 ${wpct}%</span>
+        <div class="kr-progress">${progressBarHTML(kr.progress)}</div>
+        <span class="kr-value">${kr.current_value}/${kr.target_value} ${kr.unit}</span>
+      </div>`;
+    }).join('');
+
+    const latestReview = obj.latest_review || null;
+    const reviewInfo = latestReview && statusCls !== 'rejected' ?
+      `<span style="font-size:12px;color:var(--text-secondary)">审核人: ${_escapeAuditHTML(latestReview.reviewer_name || '-')}${latestReview.comment ? ' | ' + _escapeAuditHTML(latestReview.comment) : ''}</span>` : '';
+    const rejectionNotice = statusCls === 'rejected' ? `
+      <div class="okr-rejection-notice" role="alert">
+        <div class="okr-rejection-notice-title">审核未通过</div>
+        <div class="okr-rejection-reason"><strong>驳回原因：</strong>${_escapeAuditHTML(latestReview?.comment?.trim() || '暂无驳回原因，请联系审核人确认。')}</div>
+        <div class="okr-rejection-guide">${canManage ? '公司负责人修改并保存后将直接生效，无需重新提交审核。' : '请根据以上意见修改 O 和 KR，保存后点击“重新提交审核”。'}</div>
+      </div>` : '';
+
+    // 操作按钮
+    let actions = '';
+    if (canManage) {
+      actions = `<button class="btn btn-ghost btn-sm" onclick="editOkr(${obj.id})">修改 OKR</button>`;
+    } else if (statusCls === 'draft') {
+      actions = `
+        <button class="btn btn-ghost btn-sm" onclick="editOkr(${obj.id})">编辑</button>
+        <button class="btn btn-primary btn-sm" onclick="submitReview(${obj.id}, this)">提交审核</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteOkr(${obj.id}, this)">删除</button>
+      `;
+    } else if (statusCls === 'rejected') {
+      actions = `
+        <button class="btn btn-ghost btn-sm" onclick="editOkr(${obj.id})">按意见修改</button>
+        <button class="btn btn-primary btn-sm" onclick="submitReview(${obj.id}, this)">重新提交审核</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteOkr(${obj.id}, this)">删除</button>
+      `;
+    } else if (statusCls === 'pending') {
+      actions = `
+        <button class="btn btn-warning btn-sm" onclick="withdrawReview(${obj.id}, this)">撤回审核</button>
+      `;
+    } else if (statusCls === 'active' || statusCls === 'approved') {
+      actions = `<button class="btn btn-ghost btn-sm" onclick="editOkr(${obj.id})">更新进度</button>`;
+    }
+
+    const objWpct = objTotalW > 0 ? Math.round((obj.weight || 1) / objTotalW * 100) : 0;
+    const weightTag = objectives.length > 1 ? `<span class="okr-weight-tag">权重 ${objWpct}%</span>` : '';
+    return `<div class="okr-card ${statusCls}">
+      <div class="okr-card-header">
+        <div>
+          <div class="okr-card-title">${obj.title}${weightTag}</div>
+          <div class="okr-card-meta">${obj.period} · ${formatTime(obj.created_at)}</div>
+        </div>
+        ${statusBadge(obj.status)}
+      </div>
+      ${aligned}
+      ${obj.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${obj.description}</p>` : ''}
+      ${progressBarHTML(obj.progress)}
+      <div class="kr-list">${krs || '<div style="color:#94a3b8;font-size:13px;padding:8px 0">暂无关键结果</div>'}</div>
+      ${rejectionNotice}
+      ${reviewInfo}
+      <div class="okr-card-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── 审核 ──────────────────────────────────────────────────────────────
+
+let _pendingReviews = [];
+let _activePendingReview = null;
+
+function _escapeAuditHTML(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[char]));
+}
+
+function _setAuditFilterOptions(selectId, values, defaultLabel) {
+  const select = document.getElementById(selectId);
+  const selected = select.value;
+  select.replaceChildren();
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = defaultLabel;
+  select.appendChild(defaultOption);
+  values.forEach(value => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = selectId === 'auditPeriodFilter' ? _periodLabel(value) : value;
+    select.appendChild(option);
+  });
+  if (values.includes(selected)) select.value = selected;
+}
+
+function updateAuditSummary() {
+  const total = _pendingReviews.length;
+  const employees = new Set(_pendingReviews.map(item => item.submitter_name).filter(Boolean)).size;
+  const departments = new Set(_pendingReviews.map(item => item.department_name || '未分配部门')).size;
+  document.getElementById('auditPendingCount').textContent = total;
+  document.getElementById('auditEmployeeCount').textContent = employees;
+  document.getElementById('auditDepartmentCount').textContent = total ? departments : 0;
+  const tabCount = document.getElementById('auditTabCount');
+  tabCount.textContent = total;
+  tabCount.classList.toggle('is-empty', total === 0);
+}
+
+function filterPendingReviews() {
+  const query = document.getElementById('auditSearchInput').value.trim().toLowerCase();
+  const department = document.getElementById('auditDepartmentFilter').value;
+  const period = document.getElementById('auditPeriodFilter').value;
+  const filtered = _pendingReviews.filter(item => {
+    const matchesQuery = !query || `${item.submitter_name || ''} ${item.title || ''}`.toLowerCase().includes(query);
+    const matchesDepartment = !department || (item.department_name || '未分配部门') === department;
+    const matchesPeriod = !period || item.period === period;
+    return matchesQuery && matchesDepartment && matchesPeriod;
+  });
+
+  document.getElementById('auditResultCount').textContent = `共 ${filtered.length} 条`;
+  const list = document.getElementById('auditReviewList');
+  if (!filtered.length) {
+    list.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:52px 20px;color:#94a3b8">
+      <div style="font-size:32px;margin-bottom:8px">✓</div>
+      <div>${_pendingReviews.length ? '没有符合筛选条件的待审核 OKR' : '当前没有待审核 OKR'}</div>
+    </td></tr>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(item => {
+    const reviewId = Number(item.id);
+    return `<tr>
+      <td><div class="audit-person-name">${_escapeAuditHTML(item.submitter_name || '-')}</div><span class="audit-dept-tag">${_escapeAuditHTML(item.department_name || '未分配部门')}</span></td>
+      <td style="white-space:nowrap">${_escapeAuditHTML(_periodLabel(item.period || ''))}</td>
+      <td><div class="audit-objective-title" title="${_escapeAuditHTML(item.title || '')}">${_escapeAuditHTML(item.title || '-')}</div></td>
+      <td style="min-width:130px">${progressBarHTML(item.progress)}</td>
+      <td style="white-space:nowrap;color:var(--text-secondary)">${_escapeAuditHTML(formatTime(item.created_at))}</td>
+      <td><button type="button" class="btn btn-primary btn-sm" onclick="openPendingReview(${reviewId})">查看审核</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadPendingReviews(showLoading = true) {
+  if (!canUseAuditCenter()) return;
+  const list = document.getElementById('auditReviewList');
+  if (showLoading) list.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px">加载中...</td></tr>';
+  try {
+    const reviews = await api('/api/okr/reviews/pending');
+    _pendingReviews = Array.isArray(reviews) ? reviews : [];
+    const departments = [...new Set(_pendingReviews.map(item => item.department_name || '未分配部门'))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const periods = [...new Set(_pendingReviews.map(item => item.period).filter(Boolean))].sort().reverse();
+    _setAuditFilterOptions('auditDepartmentFilter', departments, '全部部门');
+    _setAuditFilterOptions('auditPeriodFilter', periods, '全部月份');
+    updateAuditSummary();
+    filterPendingReviews();
+  } catch (e) {
+    if (document.querySelector('.tab-panel.active')?.id === 'tab-audit') {
+      list.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:40px">${_escapeAuditHTML(e.message || '审核列表加载失败')}</td></tr>`;
+      toast(e.message || '审核列表加载失败', 'error');
+    }
+  }
+}
+
+function _renderPendingObjectiveDetail(objective, review) {
+  const krs = Array.isArray(objective.key_results) ? objective.key_results : [];
+  const aligned = objective.aligned_objective
+    ? `<div class="aligned-tag">对齐公司月度目标：${_escapeAuditHTML(objective.aligned_objective.title)}</div>`
+    : '<div style="color:#94a3b8;font-size:12px">未对齐公司月度目标，将归集到“其他目标”</div>';
+  const krHtml = krs.length ? krs.map(kr => `<div class="audit-kr-item">
+    <div class="audit-kr-title">${_escapeAuditHTML(kr.title || '-')}</div>
+    ${progressBarHTML(kr.progress)}
+    <div style="margin-top:5px;color:var(--text-secondary);font-size:11px">${_escapeAuditHTML(kr.current_value ?? 0)} / ${_escapeAuditHTML(kr.target_value ?? 0)} ${_escapeAuditHTML(kr.unit || '')}</div>
+  </div>`).join('') : '<div style="color:#94a3b8;font-size:12px">暂无关键结果</div>';
+
+  document.getElementById('auditReviewDetail').innerHTML = `
+    <div class="audit-detail-meta">
+      <div><span>员工</span><strong>${_escapeAuditHTML(review.submitter_name || objective.owner_name || '-')}</strong></div>
+      <div><span>所属部门</span><strong>${_escapeAuditHTML(review.department_name || objective.department_name || '未分配部门')}</strong></div>
+      <div><span>周期</span><strong>${_escapeAuditHTML(_periodLabel(objective.period || review.period || ''))}</strong></div>
+    </div>
+    <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:7px">${_escapeAuditHTML(objective.title || review.title || '-')}</div>
+    ${objective.description ? `<div style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;line-height:1.7">${_escapeAuditHTML(objective.description)}</div>` : ''}
+    ${aligned}
+    <div class="audit-detail-section"><h4>目标总进度</h4>${progressBarHTML(objective.progress)}</div>
+    <div class="audit-detail-section"><h4>关键结果（${krs.length}）</h4>${krHtml}</div>`;
+}
+
+async function openPendingReview(reviewId) {
+  const review = _pendingReviews.find(item => Number(item.id) === Number(reviewId));
+  if (!review) {
+    toast('该审核记录已更新，请刷新后重试', 'warning');
+    return;
+  }
+  _activePendingReview = review;
+  document.getElementById('auditReviewDetail').innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">加载中...</div>';
+  document.getElementById('auditRejectComment').value = '';
+  document.getElementById('auditReviewError').style.display = 'none';
+  document.querySelectorAll('#auditReviewModal [data-audit-action]').forEach(button => button.disabled = true);
+  showModal('auditReviewModal');
+  try {
+    const objective = await api(`/api/okr/objectives/${review.objective_id}`);
+    if (!_activePendingReview || Number(_activePendingReview.id) !== Number(reviewId)) return;
+    _renderPendingObjectiveDetail(objective, review);
+    document.querySelectorAll('#auditReviewModal [data-audit-action]').forEach(button => button.disabled = false);
+  } catch (e) {
+    document.getElementById('auditReviewDetail').innerHTML = `<div style="padding:30px;text-align:center;color:var(--danger)">${_escapeAuditHTML(e.message || '目标详情加载失败')}</div>`;
+    toast(e.message || '目标详情加载失败', 'error');
+  }
+}
+
+function closePendingReviewModal() {
+  _activePendingReview = null;
+  hideModal('auditReviewModal');
+}
+
+async function submitPendingReview(status, btn) {
+  if (!_activePendingReview) {
+    toast('审核记录已失效，请刷新后重试', 'warning');
+    return;
+  }
+  const comment = document.getElementById('auditRejectComment').value.trim();
+  const error = document.getElementById('auditReviewError');
+  if (status === 'rejected' && !comment) {
+    error.textContent = '驳回时必须填写审核意见。';
+    error.style.display = 'block';
+    document.getElementById('auditRejectComment').focus();
+    return;
+  }
+  error.style.display = 'none';
+  document.querySelectorAll('#auditReviewModal [data-audit-action]').forEach(button => button.disabled = true);
+  const reviewId = _activePendingReview.id;
+  try {
+    await api(`/api/okr/reviews/${reviewId}`, { method: 'PUT', body: { status, comment } });
+    toast(status === 'approved' ? 'OKR 已审核通过' : 'OKR 已驳回', 'success');
+    closePendingReviewModal();
+    await loadPendingReviews(false);
+  } catch (e) {
+    toast(e.message || '审核失败', 'error');
+    document.querySelectorAll('#auditReviewModal [data-audit-action]').forEach(button => button.disabled = false);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitReview(objId, btn) {
+  const confirmed = await confirmAction({
+    title: '提交 OKR 审核',
+    description: '提交后将进入待审核状态，审核完成前如需修改可先撤回审核。',
+    confirmText: '提交审核',
+  });
+  if (!confirmed) return;
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/okr/objectives/${objId}/submit-review`, { method: 'POST' });
+    toast('已提交审核', 'success');
+    loadPersonalBoard();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function withdrawReview(objId, btn) {
+  const confirmed = await confirmAction({
+    title: '撤回审核',
+    description: '撤回后，此 OKR 将保留并退回草稿状态。你可以继续编辑，之后重新提交审核。',
+    confirmText: '确认撤回',
+    tone: 'warning',
+  });
+  if (!confirmed) return;
+  if (btn) btn.disabled = true;
+  try {
+    const result = await api(`/api/okr/objectives/${objId}/withdraw-review`, { method: 'POST' });
+    toast(result.msg || '已撤回审核', 'success');
+    loadPersonalBoard();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteOkr(objId, btn) {
+  const confirmed = await confirmAction({
+    title: '删除个人 OKR',
+    description: '删除后，目标、关键结果和相关审核记录将一并删除，且无法恢复。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('已删除', 'success');
+    loadPersonalBoard();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteDeptOkr(objId, btn) {
+  const confirmed = await confirmAction({
+    title: '删除公司月度 OKR',
+    description: '删除后该目标将无法恢复，请确认不再需要此目标。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('已删除', 'success');
+    loadDeptBoard();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+function renderDeptOkrCards(objectives) {
+  const container = document.getElementById('deptOkrList');
+  if (!objectives || objectives.length === 0) {
+    container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px 0">暂无部门 OKR</div>';
+    return;
+  }
+  container.innerHTML = objectives.map(obj => {
+    const statusCls = obj.status || 'draft';
+    let actions = '';
+    // 编辑权限：superAdmin / admin 始终可编辑；dept_head 对本部门 OKR 可编辑
+    const canEdit = ['superAdmin', 'admin'].includes(currentUser.role) ||
+      (currentUser.role === 'dept_head' && obj.department_id === currentUser.department_id) ||
+      obj.owner_id === currentUser.id;
+    if (canEdit) {
+      actions = `<button class="btn btn-ghost btn-sm" onclick="editDeptOkr(${obj.id})">编辑</button>`;
+      if (['draft', 'rejected'].includes(statusCls)) {
+        actions += ` <button class="btn btn-danger btn-sm" onclick="deleteDeptOkr(${obj.id}, this)">删除</button>`;
+      }
+    }
+    const weightTag = (obj.weight && obj.weight !== 1) ? `<span class="okr-weight-tag">权重 ${obj.weight}</span>` : '';
+    return `<div class="okr-card ${statusCls}" style="margin-bottom:12px">
+      <div class="okr-card-header">
+        <div>
+          <div class="okr-card-title">${obj.title}${weightTag}</div>
+          <div class="okr-card-meta">${obj.period} · 负责人: ${obj.owner_name || '-'}</div>
+        </div>
+        ${statusBadge(obj.status)}
+      </div>
+      ${obj.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${obj.description}</p>` : ''}
+      ${progressBarHTML(obj.progress)}
+      <div class="okr-card-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+async function editCompanyOkr(objId) {
+  try {
+    const obj = await api(`/api/okr/objectives/${objId}`);
+    showOkrModal('company', obj);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function editDeptOkr(objId) {
+  try {
+    const obj = await api(`/api/okr/objectives/${objId}`);
+    showOkrModal('department', obj);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── 从上周期复制 ──────────────────────────────────────────────────────
+
+function getPrevPeriod(period) {
+  // 季度: "2026-Q2" → "2026-Q1", "2026-Q1" → "2025-Q4"
+  const qm = period.match(/^(\d{4})-Q(\d)$/);
+  if (qm) {
+    let y = parseInt(qm[1]), q = parseInt(qm[2]) - 1;
+    if (q < 1) { q = 4; y--; }
+    return `${y}-Q${q}`;
+  }
+  // 月度: "2026-04" → "2026-03", "2026-01" → "2025-12"
+  const mm = period.match(/^(\d{4})-(\d{2})$/);
+  if (mm) {
+    let y = parseInt(mm[1]), m = parseInt(mm[2]) - 1;
+    if (m < 1) { m = 12; y--; }
+    return `${y}-${String(m).padStart(2, '0')}`;
+  }
+  return period;
+}
+
+async function showCopyFromPeriod(type) {
+  if (type === 'personal') { toast('个人 OKR 每月需要重新设置', 'warning'); return; }
+  const selectedMonth = currentPeriod();
+  const cur = type === 'company' ? selectedMonth.slice(0, 4) : selectedMonth;
+  const prev = type === 'company' ? String(parseInt(cur) - 1) : getPrevPeriod(cur);
+  const typeLabel = { company: '公司年度', department: '公司月度' }[type] || '';
+  document.getElementById('copyPeriodTitle').textContent = `从上周期复制${typeLabel} OKR`;
+  document.getElementById('copyPeriodHint').textContent = `将 ${prev} 的${typeLabel} OKR 复制到 ${cur}（KR 进度将归零）`;
+  document.getElementById('copyOkrType').value = type;
+  document.getElementById('copyTargetPeriod').value = cur;
+  document.getElementById('copySelectAll').checked = false;
+
+  // 构建查询参数
+  let url = `/api/okr/objectives?type=${type}&period=${prev}&include_krs=1`;
+  const targetCompanyId = currentUser.role === 'superAdmin'
+    ? (type === 'company' ? document.getElementById('companyBoardFilter').value : _deptBoardActiveCompanyId)
+    : currentUser.company_id;
+  if (targetCompanyId) url += `&company_id=${targetCompanyId}`;
+
+  try {
+    const list = await api(url);
+    const container = document.getElementById('copyOkrList');
+    if (!list || list.length === 0) {
+      container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:32px 0">上周期（${prev}）暂无${typeLabel} OKR 可复制</div>`;
+      document.getElementById('copyConfirmBtn').disabled = true;
+    } else {
+      document.getElementById('copyConfirmBtn').disabled = false;
+      container.innerHTML = list.map(obj => {
+        const krs = obj.key_results || [];
+        const krHtml = krs.length > 0
+          ? `<div style="margin-top:6px;padding-left:12px">${krs.map(kr =>
+              `<div style="font-size:12px;color:#64748b;line-height:1.8">
+                <span style="color:#8b5cf6;margin-right:4px">&#9679;</span>${kr.title}
+                <span style="color:#94a3b8;margin-left:4px">(${kr.current_value}/${kr.target_value}${kr.unit})</span>
+              </div>`
+            ).join('')}</div>`
+          : '';
+        return `<label style="display:flex;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s"
+                       onmouseover="this.style.borderColor='#8b5cf6'" onmouseout="this.style.borderColor='#e2e8f0'">
+          <input type="checkbox" class="copy-okr-cb" value="${obj.id}" style="margin-top:3px;flex-shrink:0" checked>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;color:#1e293b">${obj.title}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+              进度 ${Math.round(obj.progress || 0)}%${obj.weight && obj.weight !== 1 ? ' · 权重 ' + obj.weight : ''}
+              · ${krs.length} 个 KR
+              ${obj.owner_name ? ' · ' + obj.owner_name : ''}
+            </div>
+            ${krHtml}
+          </div>
+        </label>`;
+      }).join('');
+    }
+    showModal('copyPeriodModal');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function toggleCopySelectAll(checked) {
+  document.querySelectorAll('.copy-okr-cb').forEach(cb => cb.checked = checked);
+}
+
+async function confirmCopyFromPeriod(btn) {
+  const ids = [...document.querySelectorAll('.copy-okr-cb:checked')].map(cb => parseInt(cb.value));
+  if (ids.length === 0) { toast('请选择要复制的 OKR', 'warning'); return; }
+
+  const type = document.getElementById('copyOkrType').value;
+  const targetPeriod = document.getElementById('copyTargetPeriod').value;
+  const body = {
+    source_objective_ids: ids,
+    target_period: targetPeriod,
+  };
+
+  btn.disabled = true;
+  try {
+    const res = await api('/api/okr/objectives/copy-from-period', { method: 'POST', body });
+    hideModal('copyPeriodModal');
+    toast(res.msg || '复制成功', 'success');
+    loadCurrentTab();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+// ── 脑图视图删除回调 ──────────────────────────────────────────────────
+
+async function deleteCompanyOkr(objId) {
+  const confirmed = await confirmAction({
+    title: '删除公司年度 OKR',
+    description: '删除后无法恢复，关联的公司月度 OKR 对齐关系将被解除。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('公司 OKR 已删除', 'success');
+    loadCompanyBoard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteCompanyViewDeptOkr(objId) {
+  const confirmed = await confirmAction({
+    title: '删除公司月度 OKR',
+    description: '删除后该目标将无法恢复，请确认不再需要此目标。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('部门 OKR 已删除', 'success');
+    loadCompanyBoard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteDeptOkrFromView(objId) {
+  const confirmed = await confirmAction({
+    title: '删除公司月度 OKR',
+    description: '删除后该目标将无法恢复，请确认不再需要此目标。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('部门 OKR 已删除', 'success');
+    if (_deptBoardActiveDeptId) _renderDeptMindmap(_deptBoardActiveDeptId);
+    else loadDeptBoard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deletePersonalOkrFromDept(objId) {
+  const confirmed = await confirmAction({
+    title: '删除员工 OKR',
+    description: '删除后，员工目标、关键结果和相关审核记录将一并删除，且无法恢复。',
+    confirmText: '删除',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/objectives/${objId}`, { method: 'DELETE' });
+    toast('员工 OKR 已删除', 'success');
+    if (_deptBoardActiveDeptId) _renderDeptMindmap(_deptBoardActiveDeptId);
+    else loadDeptBoard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── 统计 ──────────────────────────────────────────────────────────────
+
+async function loadStats() {
+  // 显示工具栏
+  const toolbar = document.getElementById('statsToolbar');
+  if (toolbar) toolbar.style.display = '';
+
+  // 非 superAdmin 隐藏公司选择器
+  if (currentUser.role !== 'superAdmin') {
+    document.getElementById('statsCompanyFilter').style.display = 'none';
+  }
+
+  try {
+    // 1) 加载总览图表
+    let statsUrl = `/api/okr/statistics/overview?period=${currentPeriod()}`;
+    if (currentUser.role === 'superAdmin') {
+      const cid = document.getElementById('statsCompanyFilter').value;
+      if (cid) statsUrl += `&company_id=${cid}`;
+    }
+    const overview = await api(statsUrl);
+    OKRCharts.renderOverviewBar('chartBar', overview);
+    OKRCharts.renderCompareRadar('chartRadar', overview);
+
+    // 2) 构建部门 Tab（用 overview 返回的部门列表）
+    _buildStatsDeptTabs(overview);
+
+    // 3) 加载饼图和表格
+    await _loadStatsDeptDetail();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// superAdmin 切换公司 → 重新加载统计
+async function onStatsCompanyChange() {
+  await loadStats();
+}
+
+// 构建部门 Tab 按钮
+let _activeStatsDeptId = null;
+function _buildStatsDeptTabs(overview) {
+  const container = document.getElementById('statsDeptTabs');
+  container.innerHTML = '';
+  if (!overview || overview.length === 0) return;
+
+  // 确定默认选中
+  const hasUser = overview.some(d => d.department_id == userDeptId);
+  _activeStatsDeptId = hasUser ? userDeptId : overview[0].department_id;
+
+  overview.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'dept-tab-btn' + (d.department_id == _activeStatsDeptId ? ' active' : '');
+    btn.textContent = d.department_name;
+    btn.dataset.deptId = d.department_id;
+    btn.dataset.deptName = d.department_name;
+    btn.onclick = () => {
+      _activeStatsDeptId = d.department_id;
+      container.querySelectorAll('.dept-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _loadStatsDeptDetail();
+    };
+    container.appendChild(btn);
+  });
+}
+
+// 加载部门详情（饼图 + 表格）
+async function _loadStatsDeptDetail() {
+  const deptId = _activeStatsDeptId;
+  const activeBtn = document.querySelector('#statsDeptTabs .dept-tab-btn.active');
+  const deptName = activeBtn ? activeBtn.dataset.deptName : '';
+  if (!deptId) {
+    OKRCharts._showEmpty('chartPie', '请选择部门');
+    OKRCharts.renderMemberTable('chartMemberTable', [], '');
+    return;
+  }
+  try {
+    const deptStats = await api(`/api/okr/statistics/department/${deptId}?period=${currentPeriod()}`);
+    OKRCharts.renderMemberPie('chartPie', deptStats);
+    OKRCharts.renderMemberTable('chartMemberTable', deptStats, deptName);
+  } catch (e) {
+    OKRCharts._showEmpty('chartPie', e.message);
+  }
+}
+
+// ── OKR 创建/编辑模态框 ──────────────────────────────────────────────
+
+function showOkrModal(type, editObj) {
+  const isEdit = !!editObj;
+  const delegatedUser = type === 'personal' ? selectedPersonalViewUser() : null;
+  document.getElementById('okrEditId').value = editObj ? editObj.id : '';
+  document.getElementById('okrType').value = type;
+  document.getElementById('okrModalTitle').textContent =
+    isEdit
+      ? (type === 'personal' && currentUser.is_company_head ? `修改${editObj.owner_name || delegatedUser.name}的个人 OKR` : '编辑 OKR')
+      : (type === 'company' ? '创建公司年度 OKR' : type === 'department' ? '创建公司月度 OKR' :
+        (currentUser.is_company_head ? `为${delegatedUser.name}创建个人 OKR` : '创建个人 OKR'));
+  const delegationHint = document.getElementById('okrDelegationHint');
+  if (type === 'personal' && currentUser.is_company_head) {
+    delegationHint.style.display = '';
+    delegationHint.textContent = `以公司负责人权限维护${editObj?.owner_name || delegatedUser.name}的 OKR，保存后直接生效，不进入审批队列。`;
+  } else {
+    delegationHint.style.display = 'none';
+    delegationHint.textContent = '';
+  }
+  document.getElementById('okrTitle').value = editObj ? editObj.title : '';
+  document.getElementById('okrDesc').value = editObj ? (editObj.description || '') : '';
+  const selectedPeriod = editObj ? editObj.period : (type === 'company' ? currentPeriod().slice(0, 4) : currentPeriod());
+  const modalPeriod = document.getElementById('okrPeriod');
+  if (type === 'company') {
+    modalPeriod.innerHTML = `<option value="${selectedPeriod.slice(0, 4)}">${selectedPeriod.slice(0, 4)}年度</option>`;
+  } else {
+    modalPeriod.innerHTML = '';
+    _regularPeriodValues.forEach(value => _ensurePeriodOption(modalPeriod, value));
+    _ensurePeriodOption(modalPeriod, selectedPeriod, !_regularPeriodValues.includes(selectedPeriod));
+  }
+  modalPeriod.value = selectedPeriod;
+  document.getElementById('okrWeight').value = editObj ? (editObj.weight || 1) : 1;
+
+  // 个人 OKR 对齐公司月度目标，公司月度 OKR 可对齐年度目标。
+  const alignGroup = document.getElementById('okrAlignGroup');
+  const publicGroup = document.getElementById('okrPublicGroup');
+  if (type === 'personal') {
+    alignGroup.style.display = '';
+    document.getElementById('okrAlignLabel').textContent = '对齐公司月度目标 (可选)';
+    loadAlignOptions('department', editObj ? editObj.aligned_objective_id : null);
+    publicGroup.style.display = 'none';
+  } else if (type === 'department') {
+    alignGroup.style.display = '';
+    document.getElementById('okrAlignLabel').textContent = '对齐公司年度目标 (可选)';
+    loadAlignOptions('company', editObj ? editObj.aligned_objective_id : null);
+    publicGroup.style.display = 'none';
+    document.getElementById('okrIsPublic').checked = editObj ? !!editObj.is_public : true;
+  } else {
+    alignGroup.style.display = 'none';
+    publicGroup.style.display = 'none';
+  }
+
+  // 超级管理员创建公司年度/月度 OKR 时选择公司。
+  const companyGroup = document.getElementById('okrCompanyGroup');
+  const companySelect = document.getElementById('okrCompanySelect');
+  if ((type === 'company' || type === 'department') && currentUser.role === 'superAdmin' && !isEdit) {
+    companyGroup.style.display = '';
+    // 从 companyBoardFilter 复制公司列表（已在初始化时加载）
+    const boardFilter = document.getElementById('companyBoardFilter');
+    if (boardFilter && boardFilter.options.length > 1) {
+      companySelect.innerHTML = '<option value="">请选择公司</option>';
+      for (let i = 0; i < boardFilter.options.length; i++) {
+        const opt = boardFilter.options[i];
+        if (!opt.value) continue; // 跳过"全部公司"
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.textContent;
+        companySelect.appendChild(o);
+      }
+      // 若看板已选了某公司，预填
+      const preferredCompany = type === 'department' ? _deptBoardActiveCompanyId : boardFilter.value;
+      if (preferredCompany) companySelect.value = preferredCompany;
+    } else {
+      // 兜底：直接从 API 加载
+      api('/api/okr/companies', { noAuth: true }).then(list => {
+        companySelect.innerHTML = '<option value="">请选择公司</option>' +
+          list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      }).catch(() => {});
+    }
+  } else {
+    companyGroup.style.display = 'none';
+    companySelect.value = '';
+  }
+
+  // KR 行
+  const krRows = document.getElementById('krRows');
+  krRows.innerHTML = '';
+  if (editObj && editObj.key_results) {
+    editObj.key_results.forEach(kr => addKrRow(kr));
+  }
+
+  showModal('okrModal');
+}
+
+async function loadAlignOptions(targetType, selectedId) {
+  const sel = document.getElementById('okrAlignTo');
+  sel.innerHTML = '<option value="">不对齐</option>';
+  try {
+    if (targetType === 'department') {
+      const cid = currentUser.role === 'superAdmin' ? _deptBoardActiveCompanyId : currentUser.company_id;
+      const cidArg = cid ? `&company_id=${cid}` : '';
+      const objs = await api(`/api/okr/objectives?type=department&period=${currentPeriod()}${cidArg}`);
+      objs.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.title;
+        if (o.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    } else if (targetType === 'company') {
+      // 部门 OKR → 对齐公司 OKR
+      const cid = currentUser.role === 'superAdmin' ? _deptBoardActiveCompanyId : currentUser.company_id;
+      const cidArg = cid ? `&company_id=${cid}` : '';
+      const objs = await api(`/api/okr/objectives?type=company&period=${currentPeriod()}${cidArg}`);
+      objs.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.title;
+        if (o.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch {}
+}
+
+let krRowIndex = 0;
+function addKrRow(kr) {
+  krRowIndex++;
+  const div = document.createElement('div');
+  div.className = 'kr-edit-row';
+  div.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="form-input" placeholder="关键结果描述，例：签约客户数达到 50 家"
+             value="${kr ? kr.title.replace(/"/g,'&quot;') : ''}" data-kr="title" style="flex:1;min-width:0">
+      <input type="hidden" data-kr="id" value="${kr ? (kr.id || '') : ''}">
+      <button class="btn btn-danger btn-sm" onclick="this.closest('.kr-edit-row').remove()" style="flex-shrink:0">×</button>
+    </div>
+    <div class="kr-meta">
+      <span>已达成</span>
+      <input class="form-input" type="number" min="0"
+             value="${kr ? kr.current_value : 0}" data-kr="current">
+      <span class="kr-sep">/</span>
+      <span>目标</span>
+      <input class="form-input" type="number" min="0"
+             value="${kr ? kr.target_value : 100}" data-kr="target">
+      <input class="form-input kr-unit" placeholder="单位"
+             value="${kr ? kr.unit : '%'}" data-kr="unit">
+      <span class="kr-sep">|</span>
+      <span>权重</span>
+      <input class="form-input kr-weight" type="number" min="0.1" step="0.1"
+             value="${kr ? (kr.weight || 1) : 1}" data-kr="weight" oninput="updateKrWeightPcts()">
+      <span class="kr-weight-pct" data-kr="wpct">--</span>
+    </div>
+  `;
+  document.getElementById('krRows').appendChild(div);
+  updateKrWeightPcts();
+}
+
+/** 实时计算所有 KR 权重百分比 */
+function updateKrWeightPcts() {
+  const rows = document.querySelectorAll('#krRows .kr-edit-row');
+  let total = 0;
+  const vals = [];
+  rows.forEach(row => {
+    const v = parseFloat(row.querySelector('[data-kr="weight"]').value) || 1;
+    vals.push(v);
+    total += v;
+  });
+  rows.forEach((row, i) => {
+    const pct = total > 0 ? Math.round(vals[i] / total * 100) : 0;
+    const span = row.querySelector('[data-kr="wpct"]');
+    if (span) span.textContent = `${pct}%`;
+  });
+}
+
+async function saveOkr(btn) {
+  const id = document.getElementById('okrEditId').value;
+  const type = document.getElementById('okrType').value;
+  const title = document.getElementById('okrTitle').value.trim();
+  const description = document.getElementById('okrDesc').value.trim();
+  const period = document.getElementById('okrPeriod').value;
+  const weight = parseFloat(document.getElementById('okrWeight').value) || 1;
+  const aligned_objective_id = parseInt(document.getElementById('okrAlignTo').value) || null;
+  const is_public = document.getElementById('okrIsPublic').checked ? 1 : 0;
+
+  if (!title) { toast('请输入目标标题', 'warning'); return; }
+
+  // 创建个人 OKR 时，至少需要一个有效 KR
+  if (!id && type === 'personal') {
+    const krTitles = [...document.querySelectorAll('#krRows .kr-edit-row [data-kr="title"]')]
+      .map(el => el.value.trim()).filter(Boolean);
+    if (krTitles.length === 0) {
+      toast('至少填写一个 KR（Key Result）', 'warning');
+      return;
+    }
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    let objId = id;
+    let saveResult = null;
+    if (id) {
+      // 编辑时 aligned_objective_id=null 表示"不对齐"，但后端以 is not None 判断是否更新，
+      // 需发 0 作为"清除对齐"的信号（后端 0>0 → False → 存 NULL）
+      const updateBody = { title, description, weight, aligned_objective_id: aligned_objective_id ?? 0 };
+      if (type === 'department') updateBody.is_public = is_public;
+      saveResult = await api(`/api/okr/objectives/${id}`, {
+        method: 'PUT',
+        body: updateBody,
+      });
+    } else {
+      const body = {
+        title, description, type, period, weight,
+        department_id: type === 'personal' ? selectedPersonalViewUser().department_id : null,
+        aligned_objective_id: (type === 'personal' || type === 'department') ? aligned_objective_id : null,
+        is_public: type === 'department' ? is_public : 1,
+      };
+      // superAdmin 创建公司 OKR 时，从弹窗内的公司选择器获取 company_id
+      if (currentUser.role === 'superAdmin') {
+        if (type === 'company' || type === 'department') {
+          const selCid = document.getElementById('okrCompanySelect').value;
+          if (!selCid) { toast('请选择所属公司', 'warning'); if (btn) btn.disabled = false; return; }
+          body.company_id = parseInt(selCid);
+          body.department_id = null;
+        }
+      }
+      if (type === 'personal' && currentUser.is_company_head) {
+        body.owner_id = selectedPersonalViewUser().id;
+      }
+      saveResult = await api('/api/okr/objectives', { method: 'POST', body });
+      objId = saveResult.id;
+    }
+
+    // 保存 KR
+    const krRows = document.querySelectorAll('#krRows .kr-edit-row');
+    for (const row of krRows) {
+      const krTitle = row.querySelector('[data-kr="title"]').value.trim();
+      const target_value = parseFloat(row.querySelector('[data-kr="target"]').value) || 100;
+      const current_value = parseFloat(row.querySelector('[data-kr="current"]').value) || 0;
+      const unit = row.querySelector('[data-kr="unit"]').value || '%';
+      const krWeight = parseFloat(row.querySelector('[data-kr="weight"]').value) || 1;
+      const krId = row.querySelector('[data-kr="id"]').value;
+
+      if (!krTitle) continue;
+
+      if (krId) {
+        await api(`/api/okr/key-results/${krId}`, {
+          method: 'PUT',
+          body: { title: krTitle, target_value, current_value, unit, weight: krWeight },
+        });
+      } else {
+        await api(`/api/okr/objectives/${objId}/key-results`, {
+          method: 'POST',
+          body: { title: krTitle, target_value, current_value, unit, weight: krWeight },
+        });
+      }
+    }
+
+    hideModal('okrModal');
+    toast(saveResult?.msg || (id ? 'OKR 更新成功' : 'OKR 创建成功'), 'success');
+    loadCurrentTab();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function editOkr(objId) {
+  try {
+    const obj = await api(`/api/okr/objectives/${objId}`);
+    showOkrModal(obj.type || 'personal', obj);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── 初始加载 ──────────────────────────────────────────────────────────
+// ── 个人信息 / 密码修改 ──────────────────────────────────────────────
+
+// 打开个人信息弹窗时填充数据
+const _origShowModal = showModal;
+showModal = function(id) {
+  if (id === 'profileModal') {
+    const u = getUser();
+    document.getElementById('profilePhone').value = u.phone || '';
+    document.getElementById('profileRole').value = roleLabelForUser(u);
+    document.getElementById('profileDept').value = u.department_name || '未分配';
+    document.getElementById('profileName').value = u.name || '';
+    // 异步刷新最新信息
+    api('/api/okr/auth/me').then(me => {
+      document.getElementById('profileDept').value = me.department_name || '未分配';
+    }).catch(() => {});
+  }
+  if (id === 'pwdModal') {
+    document.getElementById('pwdOld').value = '';
+    document.getElementById('pwdNew').value = '';
+    document.getElementById('pwdConfirm').value = '';
+  }
+  _origShowModal(id);
+};
+
+async function saveProfile(btn) {
+  const name = document.getElementById('profileName').value.trim();
+  if (!name) { toast('姓名不能为空', 'warning'); return; }
+  if (btn) btn.disabled = true;
+  try {
+    const res = await api('/api/okr/auth/profile', { method: 'PUT', body: { name } });
+    // 同步 localStorage
+    const u = getUser();
+    u.name = res.name;
+    setUser(u);
+    const phone = u.phone || '';
+    const mask = phone.length === 11 ? phone.slice(0, 3) + '****' + phone.slice(7) : phone;
+    document.getElementById('headerUser').textContent = `${u.name} (${mask})`;
+    hideModal('profileModal');
+    toast('个人信息更新成功', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function savePassword(btn) {
+  const oldPwd = document.getElementById('pwdOld').value;
+  const newPwd = document.getElementById('pwdNew').value;
+  const confirmPwd = document.getElementById('pwdConfirm').value;
+  if (!oldPwd || !newPwd) { toast('请填写完整', 'warning'); return; }
+  if (newPwd !== confirmPwd) { toast('两次输入的新密码不一致', 'warning'); return; }
+  if (newPwd.length < 6) { toast('新密码至少6位', 'warning'); return; }
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/okr/auth/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
+    hideModal('pwdModal');
+    toast('密码修改成功', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+// ── 目标评估 ──────────────────────────────────────────────────────────
+
+let _currentReviewId = null;
+let _reviewDeptLoaded = false;
+// 公司 Tab 状态（仅 superAdmin 使用）
+let _reviewCompanies = [];
+let _reviewActiveCompanyId = null;
+let _reviewCompaniesLoaded = false;
+let _deptReviewItems = [];
+let _deptReviewMembers = [];
+let _reviewLoadVersion = 0;
+let _activeDeptReviewOwnerId = null;
+const _collapsedReviewDepartments = new Set();
+let _myReviewExpanded = null;
+
+function syncMyReviewCard() {
+  const isCompanyHead = !!currentUser.is_company_head;
+  if (_myReviewExpanded === null) _myReviewExpanded = !isCompanyHead;
+  const expanded = !isCompanyHead || _myReviewExpanded;
+  document.getElementById('myReviewBody').hidden = !expanded;
+  const button = document.getElementById('myReviewToggle');
+  button.style.display = isCompanyHead ? '' : 'none';
+  button.setAttribute('aria-expanded', String(expanded));
+  button.textContent = expanded ? '收起' : '展开';
+}
+
+function toggleMyReviewCard() {
+  if (!currentUser.is_company_head) return;
+  _myReviewExpanded = !_myReviewExpanded;
+  syncMyReviewCard();
+}
+
+async function loadReviews() {
+  syncMyReviewCard();
+  const loadVersion = ++_reviewLoadVersion;
+  OkrMemberEvaluation.setMembers([]);
+  document.getElementById('myMonthlyEvaluation').innerHTML = '';
+  const period = currentPeriod();
+  document.getElementById('reviewPeriodLabel').textContent = period;
+  const ruleNote = document.getElementById('memberEvaluationRuleNote');
+  ruleNote.textContent = /^\d{4}-\d{2}$/.test(period)
+    ? '月度总分 =（任务目标原始分 × 70% ＋ 行为目标原始分 × 30%）× 红线系数。每个 O 的评分为自评 20%＋主管评分 80%，再按 O 权重汇总；KR 完成率仅展示，不参与计分。'
+    : '当前为季度目标，显示原有逐 O 评估；成员月度总评适用于月度个人 OKR。';
+
+  const isSuperAdmin = currentUser.role === 'superAdmin';
+  const canManage = ['superAdmin', 'admin', 'dept_head'].includes(currentUser.role) || currentUser.is_company_head;
+  const hasCompanyScope = currentUser.role === 'admin' || currentUser.is_company_head;
+
+  // superAdmin：隐藏自评区，显示公司 Tab 条，隐藏部门下拉
+  document.getElementById('myReviewCard').style.display = isSuperAdmin ? 'none' : '';
+  document.getElementById('reviewCompanyTabBar').style.display = isSuperAdmin ? '' : 'none';
+  document.getElementById('reviewDeptFilterSlot').style.display = (!isSuperAdmin && hasCompanyScope) ? '' : 'none';
+
+  // 标题
+  const deptReviewTitle = document.getElementById('deptReviewTitle');
+  if (deptReviewTitle) {
+    deptReviewTitle.textContent = isSuperAdmin ? '公司成员评分总览' : '部门评分总览';
+  }
+
+  document.getElementById('deptReviewCard').style.display = canManage ? '' : 'none';
+  document.getElementById('reviewExportBtns').style.display = canManage ? 'flex' : 'none';
+
+  if (isSuperAdmin) {
+    // 首次加载公司列表并渲染 Tab
+    if (!_reviewCompaniesLoaded) {
+      await _loadReviewCompanyTabs();
+    } else {
+      _renderCompanyTabs();
+    }
+    // 加载当前选中公司的考核数据
+    if (loadVersion !== _reviewLoadVersion) return;
+    await _loadReviewsForCompany(period, _reviewActiveCompanyId, loadVersion);
+    return;
+  }
+
+  // ── 非 superAdmin 流程 ──────────────────────────────────────────────
+  if (hasCompanyScope && !_reviewDeptLoaded) {
+    await _loadReviewDeptFilter();
+  }
+  if (loadVersion !== _reviewLoadVersion) return;
+
+  const deptId = document.getElementById('reviewDeptFilter').value;
+  document.getElementById('myReviewContent').innerHTML = '<p style="color:#94a3b8;font-size:14px">加载中...</p>';
+  if (canManage) document.getElementById('deptReviewContent').innerHTML = '<p style="color:#94a3b8;font-size:14px">加载中...</p>';
+
+  try {
+    let url = `/api/okr/reviews/monthly?period=${period}`;
+    if (deptId) url += `&dept_id=${deptId}`;
+    const [data, assessment] = await Promise.all([
+      api(url), /^\d{4}-\d{2}$/.test(period)
+        ? api(url.replace('/reviews/monthly', '/evaluations/monthly')) : Promise.resolve({members: []}),
+    ]);
+    if (loadVersion !== _reviewLoadVersion) return;
+    OkrMemberEvaluation.setMembers(assessment.members || []);
+    OkrMemberEvaluation.renderMy(currentUser.id);
+    _renderMyReviews((data.my_reviews || []).filter(item => item.objective_type === 'personal'));
+    if (canManage) _renderDeptReviews(data.dept_reviews || [], false, (assessment.members || []).filter(
+      member => currentUser.role !== 'dept_head' || currentUser.is_company_head || member.user_id !== currentUser.id
+    ));
+  } catch (e) {
+    if (loadVersion !== _reviewLoadVersion) return;
+    const message = `<p style="color:var(--danger);font-size:14px">${_escapeAuditHTML(e.message)}</p>`;
+    document.getElementById('myReviewContent').innerHTML = message;
+    if (canManage) document.getElementById('deptReviewContent').innerHTML = message;
+  }
+}
+
+/** 加载公司列表并初始化 Tab（superAdmin 专用） */
+async function _loadReviewCompanyTabs() {
+  _reviewCompaniesLoaded = true;
+  try {
+    const list = await api('/api/okr/admin/companies');
+    _reviewCompanies = list.filter(c => c.status !== 'disabled');
+    if (_reviewCompanies.length && !_reviewActiveCompanyId) {
+      _reviewActiveCompanyId = _reviewCompanies[0].id;
+    }
+    _renderCompanyTabs();
+  } catch (e) {
+    document.getElementById('reviewCompanyTabBar').innerHTML =
+      '<span style="font-size:13px;color:#ef4444">加载公司列表失败</span>';
+  }
+}
+
+/** 渲染公司 Tab 按钮 */
+function _renderCompanyTabs() {
+  const bar = document.getElementById('reviewCompanyTabBar');
+  if (!_reviewCompanies.length) {
+    bar.innerHTML = '<span style="font-size:13px;color:#94a3b8;padding:8px 0;display:inline-block">暂无公司数据</span>';
+    return;
+  }
+  bar.innerHTML = _reviewCompanies.map(c => {
+    const active = c.id === _reviewActiveCompanyId;
+    const base = 'border:none;background:none;cursor:pointer;font-size:14px;padding:8px 20px;margin-right:4px;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s';
+    const cls = active
+      ? `${base};color:#6366f1;font-weight:600;border-bottom-color:#6366f1`
+      : `${base};color:#64748b`;
+    return `<button style="${cls}" onclick="switchReviewCompany(${c.id})">${c.name}</button>`;
+  }).join('');
+}
+
+/** 切换公司 Tab */
+async function switchReviewCompany(companyId) {
+  _reviewActiveCompanyId = companyId;
+  _renderCompanyTabs();
+  await loadReviews();
+}
+
+/** 拉取某公司的考核数据并渲染（superAdmin 专用） */
+async function _loadReviewsForCompany(period, companyId, loadVersion) {
+  document.getElementById('deptReviewContent').innerHTML = '<p style="color:#94a3b8;font-size:14px">加载中...</p>';
+  try {
+    let url = `/api/okr/reviews/monthly?period=${period}`;
+    if (companyId) url += `&company_id=${companyId}`;
+    const [data, assessment] = await Promise.all([
+      api(url), /^\d{4}-\d{2}$/.test(period)
+        ? api(url.replace('/reviews/monthly', '/evaluations/monthly')) : Promise.resolve({members: []}),
+    ]);
+    if (loadVersion !== _reviewLoadVersion) return;
+    OkrMemberEvaluation.setMembers(assessment.members || []);
+    _renderDeptReviews(data.dept_reviews || [], true, assessment.members || []);
+  } catch (e) {
+    if (loadVersion !== _reviewLoadVersion) return;
+    document.getElementById('deptReviewContent').innerHTML =
+      `<p style="color:var(--danger);font-size:14px">${_escapeAuditHTML(e.message)}</p>`;
+  }
+}
+
+async function _loadReviewDeptFilter() {
+  _reviewDeptLoaded = true;
+  try {
+    const cid = currentUser.company_id;
+    let url = '/api/okr/departments';
+    if (cid) url += `?company_id=${cid}`;
+    const depts = await api(url, { noAuth: true });
+    const sel = document.getElementById('reviewDeptFilter');
+    depts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+function _reviewStatusBadge(status) {
+  const map = {
+    pending:   '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:12px">待自评</span>',
+    self_done: '<span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:12px">待主管评</span>',
+    completed: '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:12px">已完成</span>',
+  };
+  return map[status] || status;
+}
+
+function _itemAttr(item) {
+  // 为 onclick 内联 JSON 转义
+  return JSON.stringify(item).replace(/"/g, '&quot;');
+}
+
+function _renderMyReviews(items) {
+  const el = document.getElementById('myReviewContent');
+  if (!items.length) {
+    el.innerHTML = '<p style="color:#94a3b8;font-size:14px">本月暂无考核记录，请先创建个人 OKR 并进入考核月份。</p>';
+    return;
+  }
+  const pending = items.filter(r => r.status === 'pending').length;
+  let html = '';
+  if (pending > 0) {
+    html += `<div style="font-size:13px;color:#ef4444;margin-bottom:8px;font-weight:500">⚠ 待自评：${pending} 项，请及时填写</div>`;
+  }
+  html += `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:#f8fafc;color:#64748b">
+      <th style="text-align:left;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">对齐目标</th>
+      <th style="text-align:left;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">KR / 目标名称</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">KR进度</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">状态</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">自评分</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">主管分</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">综合分</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500">操作</th>
+    </tr></thead><tbody>`;
+  items.forEach(r => {
+    const badge = _reviewStatusBadge(r.status);
+    const scoreColor = r.composite_score != null ? '#0ea5e9' : '#94a3b8';
+    const alignedTitle = r.aligned_objective_title || '-';
+    let action = '';
+    if (r.status === 'pending') {
+      action = `<button class="btn btn-primary btn-sm" onclick="openSelfReview(${_itemAttr(r)})">填写自评</button>`;
+    } else {
+      action = `<button class="btn btn-ghost btn-sm" onclick="viewReview(${_itemAttr(r)})">查看</button>`;
+    }
+    html += `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:10px 12px;color:#64748b;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${alignedTitle}">${alignedTitle}</td>
+      <td style="padding:10px 12px;color:#334155;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.objective_title}">${r.objective_title}</td>
+      <td style="text-align:center;padding:10px 12px;color:#334155">${r.kr_completion_rate != null ? Math.round(r.kr_completion_rate) + '%' : '-'}</td>
+      <td style="text-align:center;padding:10px 12px">${badge}</td>
+      <td style="text-align:center;padding:10px 12px;color:#334155">${r.self_score != null ? r.self_score : '-'}</td>
+      <td style="text-align:center;padding:10px 12px;color:#334155">${r.manager_score != null ? r.manager_score : '-'}</td>
+      <td style="text-align:center;padding:10px 12px;font-weight:600;color:${scoreColor}">${r.composite_score != null ? r.composite_score : '-'}</td>
+      <td style="text-align:center;padding:10px 12px">${action}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function _renderDeptReviews(items, isSuperAdminView, members = []) {
+  const el = document.getElementById('deptReviewContent');
+  _deptReviewItems = (items || []).filter(item => item.objective_type === 'personal');
+  _deptReviewMembers = members;
+  if (!_deptReviewItems.length && !members.length) {
+    const msg = isSuperAdminView
+      ? '本月该公司暂无可评估成员'
+      : '暂无部门考核记录（本月尚无员工发起考核）';
+    el.innerHTML = `<p style="color:#94a3b8;font-size:14px">${msg}</p>`;
+    return;
+  }
+  const ownerIds = new Set([..._deptReviewItems.map(item => String(item.owner_id)), ...members.map(member => String(member.user_id))]);
+  if (!_activeDeptReviewOwnerId || !ownerIds.has(String(_activeDeptReviewOwnerId))) {
+    _activeDeptReviewOwnerId = ownerIds.values().next().value;
+  }
+  el.innerHTML = `<div class="review-workspace">
+    <aside class="review-person-tree" id="deptReviewPersonTree" aria-label="部门和人员名单树"></aside>
+    <section class="review-person-detail" id="deptReviewPersonDetail" aria-live="polite"></section>
+  </div>`;
+  _renderDeptReviewTree();
+  _renderDeptReviewPersonDetail();
+}
+
+function _deptReviewGroups() {
+  const departments = new Map();
+  const roster = _deptReviewMembers.length ? _deptReviewMembers.map(member => ({
+    owner_id: member.user_id, owner_name: member.user_name,
+    department_id: member.department_id, department_name: member.department_name,
+  })) : _deptReviewItems;
+  roster.forEach(item => {
+    const deptKey = item.department_id != null ? `dept-${item.department_id}` : 'dept-none';
+    if (!departments.has(deptKey)) {
+      departments.set(deptKey, {
+        key: deptKey,
+        name: item.department_name || '未分配部门',
+        people: new Map(),
+      });
+    }
+    const department = departments.get(deptKey);
+    const ownerKey = String(item.owner_id);
+    if (!department.people.has(ownerKey)) {
+      department.people.set(ownerKey, {
+        id: ownerKey,
+        name: item.owner_name || '未命名员工',
+        items: _deptReviewItems.filter(review => String(review.owner_id) === ownerKey),
+      });
+    }
+  });
+  return [...departments.values()];
+}
+
+function _renderDeptReviewTree() {
+  const tree = document.getElementById('deptReviewPersonTree');
+  if (!tree) return;
+  const evaluatedOwnerIds = new Set(_deptReviewMembers
+    .filter(member => member.status === 'completed')
+    .map(member => String(member.user_id)));
+  const groups = _deptReviewGroups();
+  tree.innerHTML = '<div class="review-tree-title">部门 / 人员</div>' + groups.map(department => {
+    const people = [...department.people.values()];
+    const collapsed = _collapsedReviewDepartments.has(department.key);
+    const peopleHtml = people.map(person => {
+      const isActive = String(person.id) === String(_activeDeptReviewOwnerId);
+      const pendingCount = person.items.filter(item => item.status === 'self_done').length;
+      const initial = _escapeAuditHTML((person.name || '?').slice(0, 1));
+      return `<button type="button" class="review-tree-person${isActive ? ' is-active' : ''}"
+        aria-selected="${isActive}" onclick="selectDeptReviewPerson(${_itemAttr(person.id)})">
+        <span class="review-tree-person-avatar">${initial}</span>
+        <span class="review-tree-person-meta">
+          <span class="review-tree-person-name">${_escapeAuditHTML(person.name)}</span>
+          <span class="review-tree-person-count">${person.items.length} 个目标${pendingCount ? ` · ${pendingCount} 个待评分` : ''}</span>
+        </span>
+        ${evaluatedOwnerIds.has(person.id) ? '<span class="review-summary-pill is-complete" title="本月任务、行为及红线评估均已完成">已评估</span>' : ''}
+        ${pendingCount ? '<span class="review-tree-pending-dot" title="有待评分目标"></span>' : ''}
+      </button>`;
+    }).join('');
+    return `<div class="review-tree-department${collapsed ? ' is-collapsed' : ''}">
+      <button type="button" class="review-tree-department-toggle" aria-expanded="${!collapsed}"
+        onclick="toggleReviewDepartment(${_itemAttr(department.key)})">
+        <span class="review-tree-arrow">▾</span>
+        <span>${_escapeAuditHTML(department.name)}</span>
+        <span class="review-tree-dept-count">${people.length}人</span>
+      </button>
+      <div class="review-tree-people">${peopleHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleReviewDepartment(departmentKey) {
+  if (_collapsedReviewDepartments.has(departmentKey)) {
+    _collapsedReviewDepartments.delete(departmentKey);
+  } else {
+    _collapsedReviewDepartments.add(departmentKey);
+  }
+  _renderDeptReviewTree();
+}
+
+function selectDeptReviewPerson(ownerId) {
+  _activeDeptReviewOwnerId = String(ownerId);
+  _renderDeptReviewTree();
+  _renderDeptReviewPersonDetail();
+}
+
+function _deptReviewItem(objectiveId) {
+  return _deptReviewItems.find(item => Number(item.objective_id) === Number(objectiveId));
+}
+
+function openDeptManagerReview(objectiveId) {
+  const item = _deptReviewItem(objectiveId);
+  if (item) openManagerReview(item);
+}
+
+function viewDeptReview(objectiveId) {
+  const item = _deptReviewItem(objectiveId);
+  if (item) viewReview(item);
+}
+
+function _reviewCompactProgress(progress, label = '') {
+  const value = Number(progress);
+  const percent = Math.min(100, Math.max(0, Math.round(Number.isFinite(value) ? value : 0)));
+  const accessibleLabel = label ? `${label} ${percent}%` : `完成进度 ${percent}%`;
+  return `<span class="review-progress-compact${label ? ' has-label' : ''}" role="img" aria-label="${accessibleLabel}">
+    ${label ? `<span class="review-progress-label">${label}</span>` : ''}
+    <span class="review-progress-track" aria-hidden="true"><span class="review-progress-fill" style="width:${percent}%"></span></span>
+    <strong>${percent}%</strong>
+  </span>`;
+}
+
+function _renderDeptReviewPersonDetail() {
+  const detail = document.getElementById('deptReviewPersonDetail');
+  if (!detail) return;
+  const personItems = _deptReviewItems.filter(
+    item => String(item.owner_id) === String(_activeDeptReviewOwnerId)
+  );
+  const member = _deptReviewMembers.find(item => String(item.user_id) === String(_activeDeptReviewOwnerId));
+  if (!personItems.length && !member) {
+    detail.innerHTML = '<div class="empty-state" style="padding:60px 20px"><p>请选择人员查看目标和 KR</p></div>';
+    return;
+  }
+  const person = personItems[0] || {owner_name: member.user_name, department_name: member.department_name};
+  const pendingCount = personItems.filter(item => item.status === 'self_done').length;
+  const completedCount = personItems.filter(item => item.status === 'completed').length;
+  const objectivesHtml = personItems.map(item => {
+    const rate = item.kr_completion_rate != null ? Math.round(item.kr_completion_rate) : 0;
+    const keyResults = item.key_results || [];
+    const keyResultsHtml = keyResults.length ? keyResults.map((kr, index) => {
+      const krProgress = Math.round(kr.progress || 0);
+      return `<div class="review-detail-kr">
+        <div class="review-detail-kr-row">
+          <span class="review-detail-kr-title">KR${index + 1} · ${_escapeAuditHTML(kr.title || '')}</span>
+          <span class="review-detail-kr-metrics">
+            <span class="review-detail-kr-value">${kr.current_value ?? 0}/${kr.target_value ?? 0} ${_escapeAuditHTML(kr.unit || '')}</span>
+            ${_reviewCompactProgress(krProgress)}
+          </span>
+        </div>
+      </div>`;
+    }).join('') : '<div style="color:#94a3b8;font-size:12px;padding:6px 0">暂无关键结果</div>';
+    const action = item.status === 'self_done'
+      ? `<button class="btn btn-primary btn-sm" onclick="openDeptManagerReview(${Number(item.objective_id)})">填写评分</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="viewDeptReview(${Number(item.objective_id)})">查看评估</button>`;
+    return `<article class="review-objective-card">
+      <div class="review-objective-head">
+        <div style="min-width:0;flex:1">
+          <div class="review-objective-title">${_escapeAuditHTML(item.objective_title || '')}</div>
+          ${item.objective_description ? `<div class="review-objective-description">${_escapeAuditHTML(item.objective_description)}</div>` : ''}
+          <div class="review-objective-meta">
+            ${item.aligned_objective_title ? `<span>对齐：${_escapeAuditHTML(item.aligned_objective_title)}</span>` : ''}
+            <span>目标权重：${item.objective_weight ?? 1}</span>
+          </div>
+        </div>
+        <div class="review-objective-status">
+          ${_reviewStatusBadge(item.status)}
+          ${_reviewCompactProgress(rate, '目标进度')}
+        </div>
+      </div>
+      <div class="review-detail-kr-list">
+        <div class="review-detail-kr-heading">关键结果（${keyResults.length}）</div>
+        ${keyResultsHtml}
+      </div>
+      <div class="review-objective-scores">
+        <div class="review-score-cell"><div class="review-score-label">KR完成率</div><div class="review-score-value">${rate}%</div></div>
+        <div class="review-score-cell"><div class="review-score-label">自评分</div><div class="review-score-value">${item.self_score ?? '-'}</div></div>
+        <div class="review-score-cell"><div class="review-score-label">主管评分</div><div class="review-score-value">${item.manager_score ?? '-'}</div></div>
+        <div class="review-score-cell"><div class="review-score-label">综合得分</div><div class="review-score-value" style="color:${item.composite_score != null ? '#0ea5e9' : '#94a3b8'}">${item.composite_score ?? '-'}</div></div>
+      </div>
+      <div class="review-objective-footer">
+        <div class="review-self-comment">${item.self_comment ? `自评说明：${_escapeAuditHTML(item.self_comment)}` : '尚未填写自评说明'}</div>
+        ${action}
+      </div>
+    </article>`;
+  }).join('');
+  detail.innerHTML = `<div class="review-person-header">
+    <div class="review-person-identity">
+      <div>
+        <div class="review-person-name">${_escapeAuditHTML(person.owner_name || '未命名员工')}</div>
+        <div class="review-person-department">${_escapeAuditHTML(person.department_name || '未分配部门')}</div>
+      </div>
+      ${OkrMemberEvaluation.exportButton(_activeDeptReviewOwnerId)}
+    </div>
+    <div class="review-person-summary">
+      <span class="review-summary-pill">${personItems.length} 个目标</span>
+      <span class="review-summary-pill is-pending">${pendingCount} 个待评分</span>
+      <span class="review-summary-pill is-complete">${completedCount} 个已完成</span>
+    </div>
+  </div>${OkrMemberEvaluation.summary(_activeDeptReviewOwnerId)}${objectivesHtml || '<div class="empty-state"><p>本月暂无个人任务目标</p></div>'}`;
+}
+
+async function openSelfReview(item) {
+  _currentReviewId = null;
+  try {
+    const res = await api('/api/okr/reviews/monthly', {
+      method: 'POST',
+      body: { objective_id: item.objective_id, year_month: item.year_month }
+    });
+    _currentReviewId = res.review.id;
+  } catch (e) {
+    toast(e.message, 'error');
+    return;
+  }
+  document.getElementById('srObjectiveTitle').textContent = item.objective_title;
+  document.getElementById('srKrRate').textContent = item.kr_completion_rate != null ? Math.round(item.kr_completion_rate) + '%' : '暂无数据';
+  document.getElementById('srScore').value = '';
+  document.getElementById('srComment').value = '';
+  document.getElementById('srSubmitBtn').disabled = false;
+  showModal('selfReviewModal');
+}
+
+async function submitSelfReview() {
+  if (!_currentReviewId) { toast('操作异常，请重试', 'error'); return; }
+  const scoreRaw = document.getElementById('srScore').value.trim();
+  if (scoreRaw === '') { toast('请填写自评分', 'warning'); return; }
+  const score = parseInt(scoreRaw, 10);
+  if (isNaN(score) || score < 0 || score > 100) { toast('自评分须为 0~100 的整数', 'warning'); return; }
+  const comment = document.getElementById('srComment').value.trim();
+  const btn = document.getElementById('srSubmitBtn');
+  btn.disabled = true;
+  try {
+    await api(`/api/okr/reviews/monthly/${_currentReviewId}/self`, {
+      method: 'PUT',
+      body: { self_score: score, self_comment: comment }
+    });
+    hideModal('selfReviewModal');
+    toast('自评提交成功', 'success');
+    loadReviews();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+function openManagerReview(item) {
+  _currentReviewId = item.id;
+  document.getElementById('mrInfo').innerHTML =
+    `<span style="color:#64748b">员工：</span><strong>${item.owner_name || '-'}</strong>
+     &nbsp;&nbsp;
+     <span style="color:#64748b">目标：</span><span>${item.objective_title}</span>`;
+  document.getElementById('mrKrRate').textContent = item.kr_completion_rate != null ? Math.round(item.kr_completion_rate) + '%' : '暂无数据';
+  document.getElementById('mrSelfScore').textContent = item.self_score != null ? item.self_score + ' 分' : '-';
+  document.getElementById('mrSelfComment').textContent = item.self_comment || '（未填写）';
+  document.getElementById('mrScore').value = '';
+  document.getElementById('mrComment').value = '';
+  document.getElementById('mrSubmitBtn').disabled = false;
+  showModal('managerReviewModal');
+}
+
+async function submitManagerReview() {
+  if (!_currentReviewId) { toast('操作异常，请重试', 'error'); return; }
+  const scoreRaw = document.getElementById('mrScore').value.trim();
+  if (scoreRaw === '') { toast('请填写主管评分', 'warning'); return; }
+  const score = parseInt(scoreRaw, 10);
+  if (isNaN(score) || score < 0 || score > 100) { toast('评分须为 0~100 的整数', 'warning'); return; }
+  const comment = document.getElementById('mrComment').value.trim();
+  const btn = document.getElementById('mrSubmitBtn');
+  btn.disabled = true;
+  try {
+    await api(`/api/okr/reviews/monthly/${_currentReviewId}/manager`, {
+      method: 'PUT',
+      body: { manager_score: score, manager_comment: comment }
+    });
+    hideModal('managerReviewModal');
+    toast('评分提交成功', 'success');
+    loadReviews();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+function viewReview(item) {
+  const statusLabel = { pending: '待自评', self_done: '待主管评', completed: '已完成' };
+  const row = (label, value, highlight) => {
+    const color = highlight ? '#0ea5e9' : '#334155';
+    const weight = highlight ? '700' : '400';
+    return `<tr>
+      <td style="padding:7px 0;color:#64748b;width:88px;vertical-align:top">${label}</td>
+      <td style="padding:7px 0;color:${color};font-weight:${weight}">${value}</td>
+    </tr>`;
+  };
+  const hr = () => `<tr><td colspan="2" style="padding:3px 0"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0"></td></tr>`;
+  let html = `<table style="width:100%;font-size:14px;border-collapse:collapse">`;
+  html += row('考核目标', item.objective_title || '-');
+  if (item.owner_name) html += row('员工姓名', item.owner_name);
+  html += row('考核月份', item.year_month);
+  html += row('KR 完成率', item.kr_completion_rate != null ? Math.round(item.kr_completion_rate) + '%' : '-');
+  html += row('状态', statusLabel[item.status] || item.status);
+  html += hr();
+  html += row('自评分', item.self_score != null ? item.self_score + ' 分' : '未提交');
+  html += row('自评说明', item.self_comment || '（未填写）');
+  if (item.status === 'completed') {
+    html += hr();
+    html += row('主管评分', item.manager_score != null ? item.manager_score + ' 分' : '未填写');
+    html += row('主管评语', item.manager_comment || '（未填写）');
+    html += hr();
+    html += row('综合得分', item.composite_score != null ? item.composite_score + ' 分' : '-', true);
+  }
+  html += '</table>';
+  document.getElementById('viewReviewContent').innerHTML = html;
+  showModal('viewReviewModal');
+}
+
+// ── 导出功能 ──────────────────────────────────────────────────────────
+
+async function exportReviewExcel() {
+  try {
+    const period = currentPeriod();
+    let url = `/api/okr/reviews/monthly/export?period=${period}`;
+    if (currentUser.role === 'superAdmin') {
+      if (_reviewActiveCompanyId) url += `&company_id=${_reviewActiveCompanyId}`;
+    } else {
+      const deptId = document.getElementById('reviewDeptFilter').value;
+      if (deptId) url += `&dept_id=${deptId}`;
+    }
+    const resp = await api(url);
+    const rows = resp.rows || resp;
+    const summaryRows = resp.summary_rows || [];
+    if (!rows.length && !summaryRows.length) { toast('暂无可导出数据', 'warning'); return; }
+
+    if (typeof XLSX === 'undefined') { toast('导出库加载中，请稍后再试', 'warning'); return; }
+
+    const wb = XLSX.utils.book_new();
+    for (const [sheetName, sheetRows] of [['成员月度总分', summaryRows], ['任务目标明细', rows]]) {
+      if (!sheetRows.length) continue;
+      const ws = XLSX.utils.json_to_sheet(sheetRows);
+      ws['!cols'] = Object.keys(sheetRows[0]).map(key => ({wch: Math.max(key.length * 2, 12)}));
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    }
+    XLSX.writeFile(wb, `OKR考核_${period}.xlsx`);
+    toast('Excel 导出成功', 'success');
+  } catch (e) {
+    toast(e.message || '导出失败', 'error');
+  }
+}
+
+async function printReviewPDF() {
+  try {
+    const period = currentPeriod();
+    let url = `/api/okr/reviews/monthly/export?period=${period}`;
+    if (currentUser.role === 'superAdmin') {
+      if (_reviewActiveCompanyId) url += `&company_id=${_reviewActiveCompanyId}`;
+    } else {
+      const deptId = document.getElementById('reviewDeptFilter').value;
+      if (deptId) url += `&dept_id=${deptId}`;
+    }
+    const resp = await api(url);
+    const rows = resp.rows || resp;
+    const summaryRows = resp.summary_rows || [];
+    if (!rows.length && !summaryRows.length) { toast('暂无可打印数据', 'warning'); return; }
+
+    // 构建打印内容
+    const table = `<h3>成员月度总分</h3>${OkrMemberEvaluation.printTable(summaryRows)}
+      <h3>任务目标明细</h3>${OkrMemberEvaluation.printTable(rows)}`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>OKR月度考核 ${period}</title>
+      <style>
+        body { font-family: 'PingFang SC', '微软雅黑', sans-serif; font-size: 12px; margin: 20px; }
+        h2 { font-size: 16px; text-align: center; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+        th { background: #f0f4f8; font-weight: 600; }
+        @media print { body { margin: 10px; } }
+      </style>
+    </head><body>
+      <h2>OKR 月度考核报告 — ${period}</h2>
+      ${table}
+      <p style="color:#999;font-size:11px;margin-top:12px;text-align:right">导出时间：${new Date().toLocaleString()}</p>
+    </body></html>`);
+    win.document.close();
+    win.print();
+  } catch (e) {
+    toast(e.message || '打印失败', 'error');
+  }
+}
+
+(async function init() {
+  await initUserDept();
+  if (canUseAuditCenter()) await loadPendingReviews(false);
+  loadCurrentTab();
+})();
+</script>
+
+<!-- ── 自评弹窗 ──────────────────────────────────────────────────────────── -->
+<div class="modal-mask" id="selfReviewModal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">填写自评</div>
+    <div class="form-group">
+      <label>考核目标</label>
+      <div id="srObjectiveTitle" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:14px;color:#334155;border:1px solid #e2e8f0"></div>
+    </div>
+    <div class="form-group">
+      <label>KR 完成率</label>
+      <div id="srKrRate" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:14px;color:#334155;border:1px solid #e2e8f0"></div>
+    </div>
+    <div class="form-group">
+      <label>自评分（0 ~ 100）<span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="number" id="srScore" min="0" max="100" placeholder="请输入整数，0-100">
+    </div>
+    <div class="form-group">
+      <label>自评说明</label>
+      <textarea class="form-input" id="srComment" rows="3" placeholder="请描述本月目标完成情况、亮点及不足..."></textarea>
+    </div>
+    <div style="padding:10px 0 4px;font-size:12px;color:#94a3b8">提示：提交后不可修改，请确认无误后再提交。</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('selfReviewModal')">取消</button>
+      <button class="btn btn-primary" id="srSubmitBtn" onclick="submitSelfReview()">提交自评</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 主管评分弹窗 ──────────────────────────────────────────────────────── -->
+<div class="modal-mask" id="managerReviewModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">主管评分</div>
+    <div class="form-group">
+      <label>员工 / 目标</label>
+      <div id="mrInfo" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:14px;color:#334155;border:1px solid #e2e8f0;line-height:1.6"></div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="form-group" style="flex:1">
+        <label>KR 完成率</label>
+        <div id="mrKrRate" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:14px;color:#334155;border:1px solid #e2e8f0"></div>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>员工自评分</label>
+        <div id="mrSelfScore" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:14px;color:#334155;border:1px solid #e2e8f0"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>员工自评说明</label>
+      <div id="mrSelfComment" style="padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:13px;color:#475569;border:1px solid #e2e8f0;min-height:36px"></div>
+    </div>
+    <div class="form-group">
+      <label>主管评分（0 ~ 100）<span style="color:#ef4444">*</span></label>
+      <input class="form-input" type="number" id="mrScore" min="0" max="100" placeholder="请输入整数，0-100">
+    </div>
+    <div class="form-group">
+      <label>主管评语</label>
+      <textarea class="form-input" id="mrComment" rows="3" placeholder="请对员工本月工作表现进行点评..."></textarea>
+    </div>
+    <div style="padding:10px 0 4px;font-size:12px;color:#94a3b8">提示：提交后不可修改，请确认无误后再提交。</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('managerReviewModal')">取消</button>
+      <button class="btn btn-primary" id="mrSubmitBtn" onclick="submitManagerReview()">提交评分</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 考核详情查看弹窗 ─────────────────────────────────────────────────── -->
+<div class="modal-mask" id="viewReviewModal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">考核详情</div>
+    <div id="viewReviewContent" style="line-height:1.8"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="hideModal('viewReviewModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:24px 0 16px;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;margin-top:40px">
+  技术支持：上海仁迅科技 &nbsp;|&nbsp; 2019~2026
+</footer>
+</body>
+</html>

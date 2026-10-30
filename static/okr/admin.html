@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKR 管理平台 - 后台管理</title>
+<link rel="icon" type="image/svg+xml" href="/static/okr/logo.svg">
+<link rel="apple-touch-icon" href="/static/okr/logo.svg">
+<link rel="stylesheet" href="/static/okr/okr-common.css?v=20260816-confirm-dialog">
+<style>
+.main { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.search-box { display: flex; gap: 8px; }
+.search-box input { width: 220px; }
+td .actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.status-dot.active { background: var(--success); }
+.status-dot.disabled { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>OKR 管理平台</h1>
+  <div class="nav-right">
+    <span class="user-info" id="headerUser"></span>
+    <button class="btn-logout" id="roleSwitchBtn" style="display:none">&#20999;&#25442;&#35282;&#33394;</button>
+    <a href="/okr" class="btn-logout" style="text-decoration:none">返回主页</a>
+    <button class="btn-logout" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<div class="main">
+  <h2 class="page-title">后台管理</h2>
+
+  <div class="tabs" id="adminTabs">
+    <button class="tab-btn" data-tab="tab-companies" id="tabCompaniesBtn">公司管理</button>
+    <button class="tab-btn active" data-tab="tab-dept">部门管理</button>
+    <button class="tab-btn" data-tab="tab-users">用户管理</button>
+    <button class="tab-btn" data-tab="tab-admins" id="tabAdminsBtn">管理员管理</button>
+    <button class="tab-btn" data-tab="tab-config" id="tabConfigBtn">系统配置</button>
+    <button class="tab-btn" data-tab="tab-logs" id="tabLogsBtn">操作日志</button>
+    <button class="tab-btn" data-tab="tab-db" id="tabDbBtn">数据库管理</button>
+  </div>
+
+  <!-- -- 公司管理 -------------------------------------------------------- -->
+  <div class="tab-panel" id="tab-companies">
+    <div class="card">
+      <div class="toolbar">
+        <span style="font-weight:600">公司列表</span>
+        <button class="btn btn-primary btn-sm" onclick="showCompanyModal()">+ 新增公司</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>公司名称</th><th>公司负责人</th><th>公司OKR周期</th><th>状态</th><th>部门数</th><th>人数</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody id="companyTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 部门管理 -------------------------------------------------------- -->
+  <div class="tab-panel active" id="tab-dept">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span style="font-weight:600;margin-right:8px">部门列表</span>
+          <select class="form-input" id="deptCompanyFilter" style="width:160px" onchange="loadDepts()">
+            <option value="">全部公司</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showDeptModal()">+ 新增部门</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>部门名称</th><th>所属公司</th><th>负责人</th><th>成员数</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody id="deptTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 用户管理 -------------------------------------------------------- -->
+  <div class="tab-panel" id="tab-users">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <input class="form-input" id="userSearch" placeholder="搜索姓名或手机号" style="width:200px">
+          <select class="form-input" id="userCompanyFilter" style="width:160px" onchange="loadUsers()">
+            <option value="">全部公司</option>
+          </select>
+          <select class="form-input" id="userRoleFilter" style="width:130px">
+            <option value="">全部角色</option>
+            <option value="user">普通用户</option>
+            <option value="dept_head">部门负责人</option>
+            <option value="admin">管理员</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="loadUsers()">搜索</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showUserModal()">+ 新增用户</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>姓名</th><th>手机号</th><th>角色</th><th>所属公司</th><th>部门</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="userTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 管理员管理 ------------------------------------------------------ -->
+  <div class="tab-panel" id="tab-admins">
+    <div class="card">
+      <div class="toolbar">
+        <span style="font-weight:600">管理员列表</span>
+        <button class="btn btn-primary btn-sm" onclick="showAdminModal()">+ 添加管理员</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>姓名</th><th>手机号</th><th>角色</th><th>所属公司</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody id="adminTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 系统配置 -------------------------------------------------------- -->
+  <div class="tab-panel" id="tab-config">
+    <div class="card">
+      <div class="toolbar">
+        <span style="font-weight:600">系统参数配置</span>
+        <button class="btn btn-primary btn-sm" onclick="showConfigModal()">+ 添加配置</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>键名</th><th>值</th><th>说明</th><th>更新时间</th><th>操作</th></tr></thead>
+          <tbody id="configTable"></tbody>
+        </table>
+      </div>
+      <div class="mt-20 text-right">
+        <button class="btn btn-primary" onclick="saveAllConfig(this)">保存所有配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 操作日志 -------------------------------------------------------- -->
+  <div class="tab-panel" id="tab-logs">
+    <div class="card">
+      <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+        <span style="font-weight:600">操作日志</span>
+        <select class="form-input" id="logActionFilter" style="width:140px" onchange="loadAuditLogs()">
+          <option value="">全部操作</option>
+          <option value="delete_objective">删除 OKR</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAuditLogs()">刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>时间</th><th>操作人</th><th>角色</th><th>操作</th><th>目标类型</th><th>详情</th><th>IP</th></tr></thead>
+          <tbody id="logTable"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 0;display:flex;justify-content:space-between;align-items:center">
+        <span id="logPageInfo" style="color:#64748b;font-size:13px"></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="logPrevBtn" onclick="changeLogPage(-1)">上一页</button>
+          <button class="btn btn-ghost btn-sm" id="logNextBtn" onclick="changeLogPage(1)">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- 数据库管理 ------------------------------------------------------ -->
+  <div class="tab-panel" id="tab-db">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <label style="font-weight:600;margin-right:8px">选择表：</label>
+          <select class="form-input" id="dbTableSelect" style="width:200px" onchange="loadDbTable()">
+            <option value="">-- 请选择 --</option>
+          </select>
+        </div>
+        <div id="dbBatchBar" style="display:none;align-items:center;gap:10px">
+          <span id="dbSelectedCount" style="font-size:13px;color:#64748b"></span>
+          <button class="btn btn-danger btn-sm" id="dbBatchDeleteBtn" onclick="batchDeleteDbRows()">🗑 删除所选</button>
+        </div>
+      </div>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table id="dbDataTable">
+          <thead id="dbTableHead"><tr></tr></thead>
+          <tbody id="dbTableBody"></tbody>
+        </table>
+      </div>
+      <div id="dbPagination" style="display:none;padding:16px 0;display:flex;justify-content:space-between;align-items:center">
+        <span id="dbPageInfo" style="color:#64748b;font-size:13px"></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="dbPrevBtn" onclick="dbChangePage(-1)">上一页</button>
+          <button class="btn btn-ghost btn-sm" id="dbNextBtn" onclick="dbChangePage(1)">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- -- 数据库编辑模态框 ---------------------------------------------------- -->
+<div class="modal-mask" id="dbEditModal">
+  <div class="modal" style="width:550px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">编辑数据</div>
+    <div id="dbEditFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('dbEditModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveDbRow(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 公司模态框 ---------------------------------------------------------- -->
+<div class="modal-mask" id="companyModal">
+  <div class="modal">
+    <div class="modal-title" id="companyModalTitle">新增公司</div>
+    <input type="hidden" id="companyEditId">
+    <div class="form-group">
+      <label>公司名称</label>
+      <input class="form-input" id="companyName" placeholder="请输入公司名称">
+    </div>
+    <div class="form-group">
+      <label>公司负责人</label>
+      <select class="form-input" id="companyHeadUser"><option value="">暂不设置</option></select>
+    </div>
+    <div class="form-group">
+      <label>公司 OKR 周期</label>
+      <input class="form-input" value="年度（全年各月共用同一组目标）" disabled>
+      <input type="hidden" id="companyPeriodType" value="monthly">
+    </div>
+    <div class="form-group" id="companyStatusGroup" style="display:none">
+      <label>状态</label>
+      <select class="form-input" id="companyStatus">
+        <option value="active">正常</option>
+        <option value="disabled">禁用</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('companyModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCompany(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 部门模态框 ---------------------------------------------------------- -->
+<div class="modal-mask" id="deptModal">
+  <div class="modal">
+    <div class="modal-title" id="deptModalTitle">新增部门</div>
+    <input type="hidden" id="deptEditId">
+    <div class="form-group" id="deptCompanyGroup">
+      <label>所属公司</label>
+      <select class="form-input" id="deptCompany">
+        <option value="">请选择公司</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>部门名称</label>
+      <input class="form-input" id="deptName" placeholder="请输入部门名称">
+    </div>
+    <div class="form-group">
+      <label>部门负责人</label>
+      <select class="form-input" id="deptHead">
+        <option value="">暂不设置</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('deptModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveDept(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 用户模态框 ---------------------------------------------------------- -->
+<div class="modal-mask" id="userModal">
+  <div class="modal">
+    <div class="modal-title" id="userModalTitle">新增用户</div>
+    <input type="hidden" id="userEditId">
+    <div class="form-group">
+      <label>姓名</label>
+      <input class="form-input" id="userEditName" placeholder="请输入姓名">
+    </div>
+    <div class="form-group" id="userPhoneGroup">
+      <label>手机号</label>
+      <input class="form-input" id="userEditPhone" placeholder="请输入手机号" maxlength="11">
+    </div>
+    <div class="form-group" id="userPwdGroup">
+      <label>密码</label>
+      <input class="form-input" id="userEditPwd" type="password" placeholder="请输入密码">
+    </div>
+    <div class="form-group">
+      <label>角色</label>
+      <select class="form-input" id="userEditRole">
+        <option value="user">普通用户</option>
+        <option value="dept_head">部门负责人</option>
+      </select>
+    </div>
+    <div class="form-group" id="userCompanyGroup">
+      <label>所属公司</label>
+      <select class="form-input" id="userEditCompany" onchange="onUserCompanyChange()">
+        <option value="">请选择公司</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>部门</label>
+      <select class="form-input" id="userEditDept">
+        <option value="">未分配</option>
+      </select>
+    </div>
+    <div class="form-group" id="userStatusGroup" style="display:none">
+      <label>状态</label>
+      <select class="form-input" id="userEditStatus">
+        <option value="active">正常</option>
+        <option value="disabled">禁用</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('userModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveUser(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 管理员模态框 -------------------------------------------------------- -->
+<div class="modal-mask" id="adminModal">
+  <div class="modal">
+    <div class="modal-title">添加管理员</div>
+    <div class="form-group">
+      <label>姓名</label>
+      <input class="form-input" id="adminName" placeholder="请输入姓名">
+    </div>
+    <div class="form-group">
+      <label>手机号</label>
+      <input class="form-input" id="adminPhone" placeholder="请输入手机号" maxlength="11">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input class="form-input" id="adminPwd" type="password" placeholder="请设置密码">
+    </div>
+    <div class="form-group" id="adminCompanyGroup">
+      <label>所属公司</label>
+      <select class="form-input" id="adminCompany">
+        <option value="">请选择公司</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('adminModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveAdmin(this)">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- -- 配置模态框 ---------------------------------------------------------- -->
+<div class="modal-mask" id="configModal">
+  <div class="modal">
+    <div class="modal-title">添加配置项</div>
+    <div class="form-group">
+      <label>键名 (key)</label>
+      <input class="form-input" id="configKey" placeholder="如 okr_period">
+    </div>
+    <div class="form-group">
+      <label>值 (value)</label>
+      <input class="form-input" id="configValue" placeholder="配置值">
+    </div>
+    <div class="form-group">
+      <label>说明</label>
+      <input class="form-input" id="configDesc" placeholder="配置说明">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="hideModal('configModal')">取消</button>
+      <button class="btn btn-primary" onclick="addConfig()">添加</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/okr/okr-common.js?v=20260816-confirm-dialog"></script>
+<script>
+// -- 权限检查 ----------------------------------------------------------------
+if (!requireAuth()) throw '';
+const currentUser = getUser();
+if (!currentUser || (!['superAdmin', 'admin'].includes(currentUser.role) && !currentUser.is_company_head)) {
+  toast('权限不足', 'error');
+  setTimeout(() => window.location.href = '/okr', 1000);
+  throw '';
+}
+document.getElementById('headerUser').textContent = `${currentUser.name}`;
+const _badge = document.createElement('span');
+_badge.className = `role-badge role-${currentUser.role}`;
+_badge.textContent = roleLabelForUser(currentUser);
+document.getElementById('headerUser').after(_badge);
+setupOkrRoleSwitcher(currentUser, 'roleSwitchBtn');
+
+const isSuperAdmin = currentUser.role === 'superAdmin';
+
+// -- 对 admin 角色隐藏部分 tab ------------------------------------------------
+if (!isSuperAdmin) {
+  document.getElementById('tabCompaniesBtn').style.display = 'none';
+  document.getElementById('tabAdminsBtn').style.display = 'none';
+  document.getElementById('tabConfigBtn').style.display = 'none';
+  document.getElementById('tabLogsBtn').style.display = 'none';
+  document.getElementById('tabDbBtn').style.display = 'none';
+  // 隐藏公司筛选（admin只看自己公司）
+  document.getElementById('deptCompanyFilter').style.display = 'none';
+  document.getElementById('userCompanyFilter').style.display = 'none';
+}
+
+// -- Tab 初始化 ---------------------------------------------------------------
+initTabs('adminTabs');
+
+// -- 数据缓存 -----------------------------------------------------------------
+let allCompanies = [];
+let allDepts = [];
+let allUsers = [];
+let allConfig = [];
+
+// ============================================================================
+//  公司管理 (superAdmin only)
+// ============================================================================
+
+async function loadCompanies() {
+  try {
+    allCompanies = await api('/api/okr/admin/companies');
+    renderCompanies();
+    populateCompanyFilters();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderCompanies() {
+  const tbody = document.getElementById('companyTable');
+  if (!allCompanies.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:var(--text-secondary);padding:30px">暂无公司</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allCompanies.map(c => `<tr>
+    <td>${c.id}</td>
+    <td><strong>${c.name}</strong></td>
+    <td>${c.head_name || '<span style="color:#94a3b8">未设置</span>'}</td>
+    <td>年度</td>
+    <td><span class="status-dot ${c.status || 'active'}"></span>${(c.status || 'active') === 'active' ? '正常' : '禁用'}</td>
+    <td>${c.dept_count || 0}</td>
+    <td>${c.user_count || 0}</td>
+    <td>${formatTime(c.created_at)}</td>
+    <td class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="showCompanyModal(allCompanies.find(x=>x.id===${c.id}))">编辑</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCompany(${c.id},'${c.name}')">删除</button>
+    </td>
+  </tr>`).join('');
+}
+
+function showCompanyModal(item) {
+  const isEdit = !!item;
+  document.getElementById('companyEditId').value = item ? item.id : '';
+  document.getElementById('companyModalTitle').textContent = isEdit ? '编辑公司' : '新增公司';
+  document.getElementById('companyName').value = item ? item.name : '';
+  const companyUsers = item ? allUsers.filter(user => user.company_id === item.id && user.status === 'active') : [];
+  document.getElementById('companyHeadUser').innerHTML = '<option value="">暂不设置</option>' +
+    companyUsers.map(user => `<option value="${user.id}">${user.name}（${roleLabel(user.role)}）</option>`).join('');
+  document.getElementById('companyHeadUser').value = item && item.head_user_id ? item.head_user_id : '';
+  document.getElementById('companyStatus').value = item ? (item.status || 'active') : 'active';
+  document.getElementById('companyStatusGroup').style.display = isEdit ? '' : 'none';
+  showModal('companyModal');
+}
+
+async function saveCompany(btn) {
+  const id = document.getElementById('companyEditId').value;
+  const name = document.getElementById('companyName').value.trim();
+  if (!name) { toast('请输入公司名称', 'warning'); return; }
+
+  const headUserId = parseInt(document.getElementById('companyHeadUser').value) || null;
+  const body = { name, okr_period_type: 'monthly' };
+  if (headUserId) body.head_user_id = headUserId;
+  if (id) {
+    body.status = document.getElementById('companyStatus').value;
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    if (id) {
+      await api(`/api/okr/admin/companies/${id}`, { method: 'PUT', body });
+    } else {
+      await api('/api/okr/admin/companies', { method: 'POST', body });
+    }
+    hideModal('companyModal');
+    toast(id ? '公司更新成功' : '公司创建成功', 'success');
+    loadCompanies();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteCompany(id, name) {
+  const confirmed = await confirmAction({
+    title: `删除公司「${name}」`,
+    description: '删除后，该公司下的部门和用户将不再关联公司。此操作无法恢复。',
+    confirmText: '删除公司',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/admin/companies/${id}`, { method: 'DELETE' });
+    toast('公司已删除', 'success');
+    loadCompanies();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// -- 填充公司筛选下拉 ---------------------------------------------------------
+function populateCompanyFilters() {
+  const selectors = ['deptCompanyFilter', 'userCompanyFilter'];
+  selectors.forEach(sid => {
+    const sel = document.getElementById(sid);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">全部公司</option>' +
+      allCompanies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    sel.value = val;
+  });
+  // 也更新模态框中的公司下拉
+  const modalSelectors = ['deptCompany', 'userEditCompany', 'adminCompany'];
+  modalSelectors.forEach(sid => {
+    const sel = document.getElementById(sid);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">请选择公司</option>' +
+      allCompanies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    sel.value = val;
+  });
+}
+
+// ============================================================================
+//  部门管理
+// ============================================================================
+
+async function loadDepts() {
+  try {
+    let url = '/api/okr/admin/departments?';
+    if (isSuperAdmin) {
+      const companyId = document.getElementById('deptCompanyFilter').value;
+      if (companyId) url += `company_id=${companyId}&`;
+    } else {
+      // admin 只看自己公司
+      if (currentUser.company_id) url += `company_id=${currentUser.company_id}&`;
+    }
+    allDepts = await api(url);
+    renderDepts();
+    // 更新用户模态框的部门下拉
+    updateDeptSelects();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderDepts() {
+  const tbody = document.getElementById('deptTable');
+  if (!allDepts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="color:var(--text-secondary);padding:30px">暂无部门</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allDepts.map(d => `<tr>
+    <td>${d.id}</td>
+    <td><strong>${d.name}</strong></td>
+    <td>${d.company_name || '-'}</td>
+    <td>${d.head_name || '<span style="color:#94a3b8">未设置</span>'}</td>
+    <td>${d.member_count}</td>
+    <td>${formatTime(d.created_at)}</td>
+    <td class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="editDept(${d.id})">编辑</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteDept(${d.id},'${d.name}')">删除</button>
+    </td>
+  </tr>`).join('');
+}
+
+function updateDeptSelects() {
+  ['deptHead'].forEach(id => {
+    // 部门负责人下拉不需要更新为部门列表
+  });
+  ['userEditDept', 'regDept'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">未分配</option>' +
+      allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    sel.value = val;
+  });
+}
+
+function showDeptModal(dept) {
+  document.getElementById('deptEditId').value = dept ? dept.id : '';
+  document.getElementById('deptModalTitle').textContent = dept ? '编辑部门' : '新增部门';
+  document.getElementById('deptName').value = dept ? dept.name : '';
+
+  // 公司选择器
+  if (isSuperAdmin) {
+    document.getElementById('deptCompanyGroup').style.display = '';
+    document.getElementById('deptCompany').value = dept ? (dept.company_id || '') : '';
+  } else {
+    document.getElementById('deptCompanyGroup').style.display = 'none';
+    document.getElementById('deptCompany').value = currentUser.company_id || '';
+  }
+
+  // 加载用户列表作为负责人候选
+  loadHeadCandidates(dept ? dept.head_user_id : null);
+  showModal('deptModal');
+}
+
+async function loadHeadCandidates(selectedId) {
+  const sel = document.getElementById('deptHead');
+  sel.innerHTML = '<option value="">暂不设置</option>';
+  try {
+    const users = await api('/api/okr/admin/users');
+    users.forEach(u => {
+      if (u.role === 'superAdmin') return;
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = `${u.name} (${u.phone})`;
+      if (u.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+function editDept(id) {
+  const dept = allDepts.find(d => d.id === id);
+  if (dept) showDeptModal(dept);
+}
+
+async function saveDept(btn) {
+  const id = document.getElementById('deptEditId').value;
+  const name = document.getElementById('deptName').value.trim();
+  const head_user_id = parseInt(document.getElementById('deptHead').value) || null;
+  const company_id = parseInt(document.getElementById('deptCompany').value) || null;
+
+  if (!name) { toast('请输入部门名称', 'warning'); return; }
+
+  if (btn) btn.disabled = true;
+  try {
+    if (id) {
+      await api(`/api/okr/admin/departments/${id}`, { method: 'PUT', body: { name, head_user_id, company_id } });
+    } else {
+      await api('/api/okr/admin/departments', { method: 'POST', body: { name, head_user_id, company_id } });
+    }
+    hideModal('deptModal');
+    toast(id ? '部门更新成功' : '部门创建成功', 'success');
+    loadDepts();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteDept(id, name) {
+  const confirmed = await confirmAction({
+    title: `删除部门「${name}」`,
+    description: '删除后无法恢复；如仍有关联用户或目标，系统将阻止删除并提示处理方式。',
+    confirmText: '删除部门',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/admin/departments/${id}`, { method: 'DELETE' });
+    toast('部门已删除', 'success');
+    loadDepts();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============================================================================
+//  用户管理
+// ============================================================================
+
+async function loadUsers() {
+  const keyword = document.getElementById('userSearch').value.trim();
+  const role = document.getElementById('userRoleFilter').value;
+  let url = '/api/okr/admin/users?';
+  if (keyword) url += `keyword=${encodeURIComponent(keyword)}&`;
+  if (role) url += `role=${role}&`;
+
+  if (isSuperAdmin) {
+    const companyId = document.getElementById('userCompanyFilter').value;
+    if (companyId) url += `company_id=${companyId}&`;
+  } else {
+    // admin 只看自己公司
+    if (currentUser.company_id) url += `company_id=${currentUser.company_id}&`;
+  }
+
+  try {
+    allUsers = await api(url);
+    renderUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderUsers() {
+  const tbody = document.getElementById('userTable');
+  // 过滤掉 superAdmin 和 admin（他们在管理员 Tab 管理）
+  const users = allUsers.filter(u => u.role !== 'superAdmin' && u.role !== 'admin');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:var(--text-secondary);padding:30px">暂无用户</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `<tr>
+    <td>${u.id}</td>
+    <td><strong>${u.name}</strong></td>
+    <td>${u.phone}</td>
+    <td><span class="badge ${u.role === 'dept_head' ? 'badge-primary' : 'badge-gray'}">${roleLabel(u.role)}</span></td>
+    <td>${u.company_name || '-'}</td>
+    <td>${u.department_name || '-'}</td>
+    <td><span class="status-dot ${u.status}"></span>${u.status === 'active' ? '正常' : '禁用'}</td>
+    <td class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})">编辑</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${u.name}')">删除</button>
+    </td>
+  </tr>`).join('');
+}
+
+// 用户模态框中公司变化时，级联加载部门
+function onUserCompanyChange() {
+  const companyId = document.getElementById('userEditCompany').value;
+  const deptSel = document.getElementById('userEditDept');
+  deptSel.innerHTML = '<option value="">未分配</option>';
+  if (!companyId) return;
+  // 从 allDepts 中筛选该公司的部门
+  const filtered = allDepts.filter(d => String(d.company_id) === String(companyId));
+  filtered.forEach(d => {
+    deptSel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+  });
+}
+
+function showUserModal(user) {
+  const isEdit = !!user;
+  document.getElementById('userEditId').value = user ? user.id : '';
+  document.getElementById('userModalTitle').textContent = isEdit ? '编辑用户' : '新增用户';
+  document.getElementById('userEditName').value = user ? user.name : '';
+  document.getElementById('userEditPhone').value = user ? user.phone : '';
+  document.getElementById('userEditPwd').value = '';
+  const roleSel = document.getElementById('userEditRole');
+  roleSel.value = user ? user.role : 'user';
+  if (roleSel.selectedIndex < 0) roleSel.value = 'user';
+  const statusSel = document.getElementById('userEditStatus');
+  statusSel.value = user && (user.status === 'active' || user.status === 'disabled') ? user.status : 'active';
+
+  // 公司选择器
+  if (isSuperAdmin) {
+    document.getElementById('userCompanyGroup').style.display = '';
+    document.getElementById('userEditCompany').value = user ? (user.company_id || '') : '';
+    // 级联加载部门
+    onUserCompanyChange();
+    if (user && user.department_id) {
+      document.getElementById('userEditDept').value = user.department_id;
+    }
+  } else {
+    document.getElementById('userCompanyGroup').style.display = 'none';
+    document.getElementById('userEditCompany').value = currentUser.company_id || '';
+    // 只显示自己公司的部门
+    const deptSel = document.getElementById('userEditDept');
+    deptSel.innerHTML = '<option value="">未分配</option>' +
+      allDepts.filter(d => String(d.company_id) === String(currentUser.company_id))
+        .map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    if (user && user.department_id) {
+      deptSel.value = user.department_id;
+    }
+  }
+
+  document.getElementById('userEditDept').value = user ? (user.department_id || '') : '';
+
+  // 编辑时隐藏手机号和密码
+  document.getElementById('userPhoneGroup').style.display = isEdit ? 'none' : '';
+  document.getElementById('userPwdGroup').style.display = isEdit ? 'none' : '';
+  document.getElementById('userStatusGroup').style.display = isEdit ? '' : 'none';
+
+  showModal('userModal');
+}
+
+function editUser(id) {
+  const user = allUsers.find(u => u.id === id);
+  if (user) showUserModal(user);
+}
+
+async function saveUser(btn) {
+  const id = document.getElementById('userEditId').value;
+  const name = document.getElementById('userEditName').value.trim();
+
+  if (!name) { toast('请输入姓名', 'warning'); return; }
+
+  const company_id = parseInt(document.getElementById('userEditCompany').value) || null;
+
+  if (btn) btn.disabled = true;
+  try {
+    if (id) {
+      const role = document.getElementById('userEditRole').value;
+      const status = document.getElementById('userEditStatus').value;
+      const body = { name, department_id: parseInt(document.getElementById('userEditDept').value) || 0, company_id };
+      if (role) body.role = role;
+      if (status) body.status = status;
+      await api(`/api/okr/admin/users/${id}`, { method: 'PUT', body });
+    } else {
+      const phone = document.getElementById('userEditPhone').value.trim();
+      const password = document.getElementById('userEditPwd').value;
+      if (!phone || phone.length !== 11) { toast('请输入正确的手机号', 'warning'); return; }
+      if (!password) { toast('请输入密码', 'warning'); return; }
+      const body = {
+        phone, password, name,
+        role: document.getElementById('userEditRole').value,
+        department_id: parseInt(document.getElementById('userEditDept').value) || null,
+        company_id,
+      };
+      await api('/api/okr/admin/users', { method: 'POST', body });
+    }
+    hideModal('userModal');
+    toast(id ? '用户更新成功' : '用户创建成功', 'success');
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteUser(id, name) {
+  const confirmed = await confirmAction({
+    title: `删除用户「${name}」`,
+    description: '删除后无法恢复；如仍有关联数据，系统将阻止删除并提示处理方式。',
+    confirmText: '删除用户',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/admin/users/${id}`, { method: 'DELETE' });
+    toast('用户已删除', 'success');
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============================================================================
+//  管理员管理
+// ============================================================================
+
+async function loadAdmins() {
+  try {
+    const users = await api('/api/okr/admin/users?role=admin');
+    const superAdmins = await api('/api/okr/admin/users?role=superAdmin');
+    const admins = [...superAdmins, ...users];
+    renderAdmins(admins);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderAdmins(admins) {
+  const tbody = document.getElementById('adminTable');
+  if (!admins.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:var(--text-secondary);padding:30px">暂无管理员</td></tr>';
+    return;
+  }
+  tbody.innerHTML = admins.map(a => {
+    const isSuper = a.role === 'superAdmin';
+    return `<tr>
+      <td>${a.id}</td>
+      <td><strong>${a.name}</strong></td>
+      <td>${a.phone}</td>
+      <td><span class="badge ${isSuper ? 'badge-danger' : 'badge-primary'}">${roleLabel(a.role)}</span></td>
+      <td>${a.company_name || '-'}</td>
+      <td><span class="status-dot ${a.status}"></span>${a.status === 'active' ? '正常' : '禁用'}</td>
+      <td>${formatTime(a.created_at)}</td>
+      <td class="actions">
+        ${isSuper ? '<span style="color:#94a3b8;font-size:12px">不可操作</span>' : `
+          <button class="btn btn-warning btn-sm" onclick="toggleAdmin(${a.id},'${a.status}')">${a.status === 'active' ? '禁用' : '启用'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id},'${a.name}')">删除</button>
+        `}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function showAdminModal() {
+  document.getElementById('adminName').value = '';
+  document.getElementById('adminPhone').value = '';
+  document.getElementById('adminPwd').value = '';
+  // 公司选择器：仅 superAdmin 显示
+  if (isSuperAdmin) {
+    document.getElementById('adminCompanyGroup').style.display = '';
+    document.getElementById('adminCompany').value = '';
+  } else {
+    document.getElementById('adminCompanyGroup').style.display = 'none';
+    document.getElementById('adminCompany').value = currentUser.company_id || '';
+  }
+  showModal('adminModal');
+}
+
+async function saveAdmin(btn) {
+  const name = document.getElementById('adminName').value.trim();
+  const phone = document.getElementById('adminPhone').value.trim();
+  const password = document.getElementById('adminPwd').value;
+  if (!name || !phone || !password) { toast('请填写完整信息', 'warning'); return; }
+
+  const company_id = parseInt(document.getElementById('adminCompany').value) || null;
+
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/okr/admin/users', {
+      method: 'POST',
+      body: { name, phone, password, role: 'admin', company_id },
+    });
+    hideModal('adminModal');
+    toast('管理员创建成功', 'success');
+    document.getElementById('adminName').value = '';
+    document.getElementById('adminPhone').value = '';
+    document.getElementById('adminPwd').value = '';
+    loadAdmins();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function toggleAdmin(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+  try {
+    await api(`/api/okr/admin/users/${id}`, { method: 'PUT', body: { status: newStatus } });
+    toast(newStatus === 'active' ? '已启用' : '已禁用', 'success');
+    loadAdmins();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteAdmin(id, name) {
+  const confirmed = await confirmAction({
+    title: `删除管理员「${name}」`,
+    description: '删除后该账号将无法继续登录管理后台，且无法恢复。',
+    confirmText: '删除管理员',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/okr/admin/users/${id}`, { method: 'DELETE' });
+    toast('管理员已删除', 'success');
+    loadAdmins();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============================================================================
+//  系统配置
+// ============================================================================
+
+async function loadConfig() {
+  try {
+    allConfig = await api('/api/okr/admin/config');
+    renderConfig();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderConfig() {
+  const tbody = document.getElementById('configTable');
+  if (!allConfig.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="color:var(--text-secondary);padding:30px">暂无配置项</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allConfig.map(c => `<tr>
+    <td><code>${c.key}</code></td>
+    <td><input class="form-input" value="${c.value}" data-key="${c.key}" data-field="value" style="width:200px"></td>
+    <td><input class="form-input" value="${c.description || ''}" data-key="${c.key}" data-field="desc" style="width:200px"></td>
+    <td>${formatTime(c.updated_at)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteConfig('${c.key}')">删除</button></td>
+  </tr>`).join('');
+}
+
+function showConfigModal() { showModal('configModal'); }
+
+function addConfig() {
+  const key = document.getElementById('configKey').value.trim();
+  const value = document.getElementById('configValue').value.trim();
+  const description = document.getElementById('configDesc').value.trim();
+  if (!key || !value) { toast('键名和值为必填', 'warning'); return; }
+
+  allConfig.push({ key, value, description, updated_at: '' });
+  renderConfig();
+  hideModal('configModal');
+  document.getElementById('configKey').value = '';
+  document.getElementById('configValue').value = '';
+  document.getElementById('configDesc').value = '';
+  toast('已添加，记得点击保存', 'info');
+}
+
+async function saveAllConfig(btn) {
+  const inputs = document.querySelectorAll('#configTable input[data-key]');
+  const map = {};
+  inputs.forEach(inp => {
+    const key = inp.dataset.key;
+    if (!map[key]) map[key] = { key };
+    if (inp.dataset.field === 'value') map[key].value = inp.value;
+    if (inp.dataset.field === 'desc') map[key].description = inp.value;
+  });
+  const items = Object.values(map);
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/okr/admin/config', { method: 'PUT', body: { items } });
+    toast('配置保存成功', 'success');
+    loadConfig();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function deleteConfig(key) {
+  allConfig = allConfig.filter(c => c.key !== key);
+  renderConfig();
+  toast('已从列表移除，保存后生效', 'info');
+}
+
+// ============================================================================
+//  数据库管理
+// ============================================================================
+
+let dbColumns = [];
+let dbRows = [];
+let dbCurrentTable = '';
+let dbPage = 1;
+let dbPageSize = 20;
+let dbTotal = 0;
+
+async function loadDbTables() {
+  try {
+    const tables = await api('/api/okr/admin/db/tables');
+    const sel = document.getElementById('dbTableSelect');
+    sel.innerHTML = '<option value="">-- 请选择 --</option>' +
+      tables.map(t => `<option value="${t}">${t}</option>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadDbTable() {
+  const table = document.getElementById('dbTableSelect').value;
+  if (!table) {
+    document.getElementById('dbTableHead').innerHTML = '<tr></tr>';
+    document.getElementById('dbTableBody').innerHTML = '';
+    document.getElementById('dbPagination').style.display = 'none';
+    return;
+  }
+  dbCurrentTable = table;
+  try {
+    const data = await api(`/api/okr/admin/db/tables/${table}?page=${dbPage}&page_size=${dbPageSize}`);
+    dbColumns = data.columns;
+    dbRows = data.rows;
+    dbTotal = data.total;
+    renderDbTable();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderDbTable() {
+  // 重置批量操作栏
+  document.getElementById('dbBatchBar').style.display = 'none';
+
+  // 表头（复选框 + 数据列 + 操作列）
+  const checkboxHead = '<th style="width:36px;text-align:center"><input type="checkbox" id="dbSelectAll" onchange="toggleSelectAllDb(this)" title="全选"></th>';
+  const headCols = checkboxHead + dbColumns.map(c => `<th>${c.name}</th>`).join('') + '<th style="width:70px">操作</th>';
+  document.getElementById('dbTableHead').innerHTML = `<tr>${headCols}</tr>`;
+
+  // 表体
+  const colspan = dbColumns.length + 2; // checkbox + cols + ops
+  if (dbRows.length === 0) {
+    document.getElementById('dbTableBody').innerHTML =
+      `<tr><td colspan="${colspan}" style="text-align:center;color:#94a3b8;padding:40px">暂无数据</td></tr>`;
+  } else {
+    document.getElementById('dbTableBody').innerHTML = dbRows.map(row => {
+      const cells = dbColumns.map(c => {
+        const val = row[c.name];
+        const display = val === null ? '<span style="color:#cbd5e1">NULL</span>'
+          : String(val).length > 50 ? String(val).slice(0, 50) + '...' : String(val);
+        return `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(val || '').replace(/"/g, '&quot;')}">${display}</td>`;
+      }).join('');
+      const checkbox = `<td style="text-align:center"><input type="checkbox" class="db-row-check" value="${row.id}" onchange="updateDbBatchBar()"></td>`;
+      const actions = `<td><button class="btn btn-ghost btn-sm" onclick='showDbEditModal(${JSON.stringify(row)})'>编辑</button></td>`;
+      return `<tr>${checkbox}${cells}${actions}</tr>`;
+    }).join('');
+  }
+
+  // 分页
+  const totalPages = Math.ceil(dbTotal / dbPageSize) || 1;
+  document.getElementById('dbPageInfo').textContent = `共 ${dbTotal} 条，第 ${dbPage}/${totalPages} 页`;
+  document.getElementById('dbPrevBtn').disabled = dbPage <= 1;
+  document.getElementById('dbNextBtn').disabled = dbPage >= totalPages;
+  document.getElementById('dbPagination').style.display = 'flex';
+}
+
+function dbChangePage(delta) {
+  const totalPages = Math.ceil(dbTotal / dbPageSize) || 1;
+  const newPage = dbPage + delta;
+  if (newPage < 1 || newPage > totalPages) return;
+  dbPage = newPage;
+  loadDbTable();
+}
+
+function showDbEditModal(row) {
+  const container = document.getElementById('dbEditFields');
+  container.innerHTML = dbColumns.map(c => {
+    const val = row[c.name] === null ? '' : row[c.name];
+    const disabled = c.pk ? 'disabled' : '';
+    return `<div class="form-group">
+      <label>${c.name} <span style="color:#94a3b8;font-size:11px">(${c.type}${c.pk ? ', PK' : ''})</span></label>
+      <input class="form-input" data-col="${c.name}" value="${String(val).replace(/"/g, '&quot;')}" ${disabled}>
+    </div>`;
+  }).join('');
+  document.getElementById('dbEditModal')._rowId = row.id;
+  showModal('dbEditModal');
+}
+
+async function saveDbRow(btn) {
+  const rowId = document.getElementById('dbEditModal')._rowId;
+  const inputs = document.querySelectorAll('#dbEditFields input[data-col]:not([disabled])');
+  const body = {};
+  inputs.forEach(inp => { body[inp.dataset.col] = inp.value; });
+
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/okr/admin/db/tables/${dbCurrentTable}/${rowId}`, { method: 'PUT', body });
+    hideModal('dbEditModal');
+    toast('数据更新成功', 'success');
+    loadDbTable();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+function toggleSelectAllDb(cb) {
+  document.querySelectorAll('.db-row-check').forEach(c => c.checked = cb.checked);
+  updateDbBatchBar();
+}
+
+function updateDbBatchBar() {
+  const all = document.querySelectorAll('.db-row-check');
+  const checked = document.querySelectorAll('.db-row-check:checked');
+  const bar = document.getElementById('dbBatchBar');
+  const countEl = document.getElementById('dbSelectedCount');
+  const selAll = document.getElementById('dbSelectAll');
+
+  if (checked.length > 0) {
+    bar.style.display = 'flex';
+    countEl.textContent = `已选 ${checked.length} / ${all.length} 条`;
+  } else {
+    bar.style.display = 'none';
+  }
+  if (selAll) {
+    selAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    selAll.checked = all.length > 0 && checked.length === all.length;
+  }
+}
+
+async function batchDeleteDbRows() {
+  const checked = document.querySelectorAll('.db-row-check:checked');
+  if (!checked.length) return;
+  const ids = Array.from(checked).map(c => parseInt(c.value));
+  const confirmed = await confirmAction({
+    title: '批量删除数据库记录',
+    description: `将删除当前选中的 ${ids.length} 条记录。此操作不可撤销，请谨慎确认。`,
+    confirmText: `删除 ${ids.length} 条`,
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  const btn = document.getElementById('dbBatchDeleteBtn');
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  const errors = [];
+  for (const id of ids) {
+    try {
+      await api(`/api/okr/admin/db/tables/${dbCurrentTable}/${id}`, { method: 'DELETE' });
+      ok++;
+    } catch (e) {
+      fail++;
+      errors.push(`ID=${id}：${e.message}`);
+    }
+  }
+  btn.disabled = false;
+  if (fail) {
+    const visibleErrors = errors.slice(0, 3).join('；');
+    const hiddenCount = errors.length - 3;
+    const suffix = hiddenCount > 0 ? `；另有 ${hiddenCount} 条失败记录` : '';
+    toast(`删除完成：成功 ${ok} 条，失败 ${fail} 条。${visibleErrors}${suffix}`, 'warning', 8000);
+  } else {
+    toast(`已删除 ${ok} 条记录`, 'success');
+  }
+  loadDbTable();
+}
+
+async function deleteDbRow(rowId, btn) {
+  const confirmed = await confirmAction({
+    title: `删除数据库记录 ID=${rowId}`,
+    description: '此操作不可撤销；如该记录仍被其他数据引用，系统将阻止删除。',
+    confirmText: '删除记录',
+    tone: 'danger',
+  });
+  if (!confirmed) return;
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/api/okr/admin/db/tables/${dbCurrentTable}/${rowId}`, { method: 'DELETE' });
+    toast('记录已删除', 'success');
+    loadDbTable();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+
+// ============================================================================
+//  操作日志 (superAdmin only)
+// ============================================================================
+
+let _logPage = 1;
+const _logSize = 20;
+const _actionLabel = { delete_objective: '删除 OKR' };
+const _targetLabel = { company: '公司', department: '部门', personal: '个人' };
+
+async function loadAuditLogs() {
+  const action = document.getElementById('logActionFilter').value;
+  let url = `/api/okr/admin/audit-logs?page=${_logPage}&size=${_logSize}`;
+  if (action) url += `&action=${action}`;
+  try {
+    const data = await api(url);
+    const tbody = document.getElementById('logTable');
+    if (!data.items || data.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:32px">暂无操作日志</td></tr>';
+    } else {
+      tbody.innerHTML = data.items.map(r => `<tr>
+        <td style="white-space:nowrap">${r.created_at || ''}</td>
+        <td>${r.user_name || ''}</td>
+        <td>${roleLabel(r.user_role || '')}</td>
+        <td>${_actionLabel[r.action] || r.action}</td>
+        <td>${_targetLabel[r.target_type] || r.target_type}</td>
+        <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r.detail || '').replace(/"/g, '&quot;')}">${r.detail || ''}</td>
+        <td style="font-size:12px;color:#94a3b8">${r.ip || ''}</td>
+      </tr>`).join('');
+    }
+    const total = data.total || 0;
+    const pages = Math.ceil(total / _logSize) || 1;
+    document.getElementById('logPageInfo').textContent = `第 ${_logPage}/${pages} 页，共 ${total} 条`;
+    document.getElementById('logPrevBtn').disabled = _logPage <= 1;
+    document.getElementById('logNextBtn').disabled = _logPage >= pages;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function changeLogPage(delta) {
+  _logPage += delta;
+  if (_logPage < 1) _logPage = 1;
+  loadAuditLogs();
+}
+
+// -- 初始加载 -----------------------------------------------------------------
+if (isSuperAdmin) {
+  loadCompanies().then(() => {
+    loadDepts();
+    loadUsers();
+  });
+  loadAdmins();
+  loadConfig();
+  loadAuditLogs();
+  loadDbTables();
+} else {
+  loadDepts();
+  loadUsers();
+}
+</script>
+</body>
+</html>

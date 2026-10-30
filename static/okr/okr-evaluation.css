@@ -1,0 +1,26 @@
+/* Member/month evaluation; shared tokens and modal/form components remain canonical. */
+.review-person-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-width: 0; }
+.member-evaluation { margin-bottom: 18px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); }
+.member-evaluation-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.member-evaluation-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.member-evaluation-note { margin: 8px 0; color: var(--text-secondary); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.member-evaluation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.member-evaluation-metric { padding: 14px 10px; border-radius: var(--radius-sm); background: var(--bg); }
+.member-evaluation-label { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.member-evaluation-value { margin-top: 6px; font-size: 23px; color: var(--primary); font-weight: 700; }
+.member-evaluation-metric.is-total { border: 1px solid var(--primary-light); }
+.member-evaluation.is-redline .member-evaluation-metric.is-total .member-evaluation-value { color: var(--danger); }
+.member-evaluation-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.member-evaluation-behavior { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; line-height: 1.8; }
+.member-evaluation-behavior strong { color: var(--text); }
+.member-evaluation-status { margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
+.member-evaluation-form { width: 600px; }
+.member-evaluation-form label { display: block; margin-bottom: 7px; line-height: 1.7; }
+.member-evaluation-form .member-evaluation-error { color: var(--danger); font-size: 13px; white-space: pre-line; }
+.member-evaluation-form .form-input { width: 100%; }
+.member-evaluation-form textarea { resize: vertical; }
+@media (max-width: 768px) {
+  .member-evaluation { padding: 14px; }
+  .member-evaluation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .member-evaluation-detail { grid-template-columns: 1fr; }
+}
