@@ -35,7 +35,7 @@ okr/db.py owns SQLite schema and existing idempotent startup migrations, WAL, ti
 
 ## Authentication, authorization, and data isolation
 
-Enterprise WeChat OAuth creates accounts; first-use SMS verifies phone ownership. Company and role checks remain on the server, with audit records. Password login is reserved for the bootstrap super administrator. Standalone setup uses an operator-chosen password and random JWT secret. No deployed credentials or real member data ship. The public extraction replaces the legacy fixed seed credentials only; existing integrated deployment seeding is unchanged.
+Enterprise WeChat OAuth creates accounts; first-use SMS verifies phone ownership. Company and role checks remain on the server, with audit records. Password login is reserved for the bootstrap super administrator. Standalone setup uses an operator-chosen password and random JWT secret. No deployed credentials or operational member database ship. Maintainer-provided screenshots are separately identified as partially masked views of an existing deployment. The public extraction replaces the legacy fixed seed credentials only; existing integrated deployment seeding is unchanged.
 
 ## External integrations and jobs
 
