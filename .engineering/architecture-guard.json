@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "required_files": [
+    "AGENTS.md",
+    ".engineering/project.yaml",
+    ".engineering/architecture.md",
+    ".engineering/architecture-guard.json",
+    "scripts/architecture_guard.py"
+  ],
+  "decision_files": [
+    ".engineering/project.yaml",
+    ".engineering/architecture.md",
+    ".engineering/architecture-guard.json"
+  ],
+  "budgets": [
+    {
+      "id": "python-source-lines",
+      "glob": "**/*.py",
+      "max_lines": 500,
+      "exclude": ["**/migrations/**", "**/alembic/versions/**"]
+    },
+    {
+      "id": "java-source-lines",
+      "glob": "**/*.java",
+      "max_lines": 500,
+      "exclude": ["**/generated/**"]
+    },
+    {
+      "id": "frontend-source-lines",
+      "glob": "**/*.tsx",
+      "max_lines": 500,
+      "exclude": []
+    },
+    {
+      "id": "typescript-source-lines",
+      "glob": "**/*.ts",
+      "max_lines": 500,
+      "exclude": ["**/*.d.ts"]
+    },
+    {
+      "id": "stylesheet-lines",
+      "glob": "**/*.css",
+      "max_lines": 800,
+      "exclude": []
+    }
+  ],
+  "python_function_max_lines": 80,
+  "module_boundaries": [
+    {
+      "id": "backend-module-boundary",
+      "root": "okr",
+      "kind": "python",
+      "public_names": ["public", "__init__"]
+    },
+    {
+      "id": "frontend-feature-boundary",
+      "root": "static/okr",
+      "kind": "typescript",
+      "public_names": ["index"]
+    }
+  ],
+  "forbidden_patterns": [
+    {
+      "id": "sql-in-python-router",
+      "glob": "**/router.py",
+      "regex": "(?i)\\b(SELECT|INSERT|UPDATE|DELETE)\\s+(FROM|INTO|[A-Za-z_])",
+      "message": "Routers must call a service/repository instead of owning SQL."
+    },
+    {
+      "id": "sql-in-java-controller",
+      "glob": "**/*Controller.java",
+      "regex": "(?i)\\b(SELECT|INSERT|UPDATE|DELETE)\\s+(FROM|INTO|[A-Za-z_])",
+      "message": "Controllers must call an application service instead of owning SQL."
+    },
+    {
+      "id": "fetch-in-page",
+      "glob": "**/*Page.tsx",
+      "regex": "\\bfetch\\s*\\(",
+      "message": "Pages must use a feature-owned API client instead of raw transport."
+    },
+    {
+      "id": "browser-native-dialog",
+      "glob": "**/*.tsx",
+      "regex": "\\b(alert|confirm|prompt)\\s*\\(",
+      "message": "Use application-owned dialogs and notifications."
+    }
+  ],
+  "exceptions": [
+    {
+      "rule": "python-source-lines", "path": "okr/api.py",
+      "reason": "Existing 3307-line API relocated without changing business behavior; splitting handlers is outside extraction scope.",
+      "owner": "huevan", "regression_evidence": "69 baseline OKR tests; package and full schema compatibility checks",
+      "removal_condition": "Extract owning services and focused routers before adding business workflows to this file."
+    },
+    {
+      "rule": "python-source-lines", "path": "okr/db.py",
+      "reason": "Existing schema and idempotent migration history remain together for compatibility.",
+      "owner": "huevan", "regression_evidence": "Temporary SQLite setup and existing OKR regression suite",
+      "removal_condition": "Move historical migrations behind an equivalent migration runner before extending schema history."
+    },
+    {
+      "rule": "python-function-lines", "path": "okr/api.py",
+      "reason": "Four inherited long handlers retain their pre-extraction authorization and transaction flow.",
+      "owner": "huevan", "regression_evidence": "Company model, WeChat, board and monthly evaluation regressions",
+      "removal_condition": "Extract each handler's application service before expanding the corresponding behavior."
+    },
+    {
+      "rule": "python-function-lines", "path": "okr/evaluation_service.py",
+      "reason": "Existing 83-line member read use case retained to preserve scoring consistency.",
+      "owner": "huevan", "regression_evidence": "Member monthly evaluation, export and PDF tests",
+      "removal_condition": "Extract data loading from scoring projection before adding a new assessment dimension."
+    }
+  ]
+}
