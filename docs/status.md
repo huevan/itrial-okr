@@ -2,6 +2,14 @@
 
 Updated: 2026-10-30
 
+## README onboarding refresh
+
+The README now leads with audience and core capabilities, followed by Python setup, Docker-only initialization, Linux UID 10001 permissions, HTTPS reverse proxying, Enterprise WeChat application/domain/callback/IP configuration, Tencent SMS, first login, environment injection and troubleshooting. Existing screenshot links and the historical scoring caption remain.
+
+The guide follows the current setup, lifecycle, authentication, provider adapters and Compose definitions. It distinguishes basic service health, non-empty local WeChat configuration and successful live provider authentication. Tencent's official configuration and SendSms documentation are linked next to the relevant steps. No provider credentials or deployment values are included.
+
+This change is limited to documentation. Markdown anchors, local links, five image references, JSON, environment names, PowerShell/POSIX syntax and the merged Compose environment-file example pass checks, as do static quality gates and pip check. Task-owned copies verify host initialization, random configuration, unchanged files on repeated setup, Docker initialization, Linux UID 10001 access, startup/health, emergency authentication and synthetic WeChat account linking. Live Enterprise WeChat authorization and SMS delivery are not exercised. Application code, existing services and business data remain unchanged; GitHub publication is separate from application deployment.
+
 ## Core feature screenshots
 
 The maintainer explicitly requested publication of five supplied PNG screenshots, including a subsequent personal objective/KR editor view. They are copied byte-for-byte into `docs/screenshots/` and embedded in the root README: target alignment/mind map, personal objective/KR editing, statistics, monthly member evaluation, and administrative user management. Existing masking is retained; the README identifies them as partially masked screenshots of an existing deployment rather than bundled application data.
